@@ -1,6 +1,5 @@
 {
-  "name": "first project",
-  "main": "src/worker.js",
-  "compatibility_date": "2024-01-01"
+  "name": "my-frist-project",
+  "compatibility_date": "2026-02-05",
+  "main": "worker.js"
 }
-
