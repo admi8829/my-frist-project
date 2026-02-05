@@ -60,13 +60,14 @@ export default {
 
         // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
         // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
+        /**
         const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
           const currentTime = Math.floor(Date.now() / 1000);
           if (currentTime - msgCheck.date > 100) { 
             return new Response("OK", { status: 200 });
           }
-        }
+        }*/
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
