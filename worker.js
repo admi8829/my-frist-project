@@ -160,7 +160,7 @@ async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Stud
     [{ text: "📚 Grade 9", callback_data: "grade_9" }, { text: "📚 Grade 10", callback_data: "grade_10" }],
     [{ text: "📚 Grade 11", callback_data: "grade_11" }, { text: "📚 Grade 12", callback_data: "grade_12" }],
     [{ text: "🏆leaderboard ", callback_data: "leaderboard" }],
-    [{ text: "🙏 Ask Smart-X ", callback_data: "contact" }, { text: "❓ Help ", callback_data: "help" }]
+    [{ text: " 🙏 Ask Smart-X ", callback_data: "contact" }, { text: "❓ Help ", callback_data: "help" }]
   ];
   const method = editMessageId ? "editMessageText" : "sendMessage";
   const body = { chat_id: chatId, text: welcomeText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } };
