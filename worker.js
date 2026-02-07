@@ -58,7 +58,7 @@ export default {
       try {
         const payload = await request.json();
 
-        // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
+        /* የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
         // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
         const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
@@ -66,7 +66,7 @@ export default {
           if (currentTime - msgCheck.date > 30) { 
             return new Response("OK", { status: 200 });
           }
-        }
+        }*/
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
@@ -302,12 +302,12 @@ async function sendSubjects(env, chatId, messageId, grade) {
 
 const UNIT_COUNTS = {
   // Grade 9
-  "grade_9_phys": 6, "grade_9_hist": 7, "grade_9_biol": 5, "grade_9_econ": 6,
-  "grade_9_chem": 6, "grade_9_geog": 7, "grade_9_engl": 10, "grade_9_citi": 5,
+  "grade_9_phys": 7, "grade_9_hist": 9, "grade_9_biol": 6, "grade_9_econ": 8,
+  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engl": 10, "grade_9_citi": 7,
   
   // Grade 10
-  "grade_10_phys": 6, "grade_10_hist": 7, "grade_10_biol": 6, "grade_10_econ": 6,
-  "grade_10_chem": 6, "grade_10_geog": 7, "grade_10_engl": 10, "grade_10_citi": 5,
+  "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
+  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_engl": 10, "grade_10_citi": 8,
 
   // Grade 11
   "grade_11_phys": 8, "grade_11_hist": 8, "grade_11_biol": 7, "grade_11_econ": 7,
