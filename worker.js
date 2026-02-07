@@ -271,7 +271,7 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
-    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
+    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Engish", "Citizenship"]],
     grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
     grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Maths"]],
     grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]]
@@ -304,7 +304,7 @@ async function sendSubjects(env, chatId, messageId, grade) {
 const UNIT_COUNTS = {
   // Grade 9
   "grade_9_phys": 7, "grade_9_hist": 9, "grade_9_biol": 6, "grade_9_econ": 8,
-  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engl": 10, "grade_9_citi": 7,
+  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engi": 10, "grade_9_citi": 7,
   
   // Grade 10
   "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
