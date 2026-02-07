@@ -141,11 +141,22 @@ export default {
              await sendUnits(env, chatId, messageId, reconstructedData);
           }
         }
-      } catch (e) {
+     /* } catch (e) {
         return new Response("OK", { status: 200 });
       }
       return new Response("OK", { status: 200 });
-    }
+    }*/      
+      
+      } catch (e) {
+        // ስህተቱን ለአንተ (Admin) በቴሌግራም ይልካል
+        await callTelegram(env, "sendMessage", { 
+          chat_id: env.ADMIN_ID, 
+          text: `⚠️ **Error Detected:**\n\`${e.message}\` \n\n**Stack:** \`${e.stack}\``,
+          parse_mode: "Markdown"
+        });
+        return new Response("OK", { status: 200 });
+      }
+      
     return new Response("Bot is active!");
   },
 };
@@ -229,7 +240,7 @@ async function handleAnswer(env, chatId, messageId, data, fullName) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: feedbackText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
-async function handleSeenQuestion(env, chatId, messageId, data) {
+/*async function handleSeenQuestion(env, chatId, messageId, data) {
   const parts = data.split("_");
   const path = `${parts[1]}_${parts[2]}_${parts[3]}_${parts[4]}`;
   const currentIndex = parseInt(parts[5]);
@@ -242,8 +253,97 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   q.options.forEach((opt, idx) => { formattedText += `${idx === q.correct ? "✅" : "🔹"} *${labels[idx]}.* ${opt}\n`; });
   let keyboard = [[{ text: "⬅️ Back to explain ", callback_data: `answer_quiz_${path}_${currentIndex}_-1` }], [{ text: "Next ➡️", callback_data: `next_${path}_${currentIndex + 1}` }]];
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
-}
+}*/
 
+async function sendQuestion(env, chatId, messageId, data, questionIndex) {
+  // data ከ callback የመጣ ነው (ለምሳሌ start_grade_9_phys_1)
+  // path ወደ quiz_grade_9_phys_1 ይቀየራል
+  const path = data.replace("start_", "quiz_"); 
+
+  // --- DEBUGGING LINE: ችግሩን ለማወቅ የሚረዳ ---
+  // አንተ (Admin) ስትጫነው ብቻ ቦቱ የትኛውን Key እንደሚፈልግ ይነግርሃል
+  if (chatId.toString() === env.ADMIN_ID) {
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: `🔍 **Debug Info:**\nSearching for Key: \`${path}\` \nQuestion Index: \`${questionIndex}\``,
+      parse_mode: "Markdown"
+    });
+  }
+  // -------------------------------------------
+
+  const quizDataRaw = await getD1Value(env, path);
+  
+  if (!quizDataRaw) {
+    await callTelegram(env, "sendMessage", { 
+      chat_id: chatId, 
+      text: `❌ **ይቅርታ!** የዚህ ዩኒት ጥያቄዎች አልተገኙም።\n(Path: \`${path}\`)`,
+      parse_mode: "Markdown"
+    });
+    return;
+  }
+
+  let questions;
+  try {
+    questions = typeof quizDataRaw === 'string' ? JSON.parse(quizDataRaw) : quizDataRaw;
+  } catch (e) {
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: `⚠️ **JSON Error in ${path}:**\n\`${e.message}\`` 
+    });
+    return;
+  }
+
+  // ፈተናው ካለቀ (ሁሉንም ጥያቄ ጨርሶ ከሆነ)
+  if (questionIndex >= questions.length || questionIndex < 0) {
+    const rawScore = await getD1Value(env, `temp_score_${chatId}`);
+    const finalScore = (rawScore !== null) ? parseInt(rawScore) : 0;
+    
+    const userRes = await callTelegram(env, "getChat", { chat_id: chatId });
+    const userJson = await userRes.json();
+    const fullName = userJson.ok ? (userJson.result.first_name || "Student") : "Student";
+
+    if (finalScore > 0) {
+        await updateScore(env, chatId.toString(), fullName, finalScore);
+    }
+
+    await callTelegram(env, "editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text: `🎉 **ዩኒቱን አጠናቀዋል!**\n\n🎯 ውጤት: *${finalScore}/${questions.length}*\n\nውጤትዎ በደረጃ ሰንጠረዥ ላይ ተመዝግቧል! 🏆`,
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard: [[{ text: "🔙 ወደ ዋናው ማውጫ", callback_data: "back_to_main" }]] }
+    });
+    
+    // ውጤቱን Reset ማድረግ
+    await putD1Value(env, `temp_score_${chatId}`, "0");
+    return;
+  }
+
+  // ጥያቄውን ማሳያ
+  const q = questions[questionIndex];
+  const labels = ["A", "B", "C", "D"];
+  let formattedText = `*ጥያቄ ${questionIndex + 1}/${questions.length}*\n\n${q.question}\n\n`;
+  
+  q.options.forEach((opt, idx) => { 
+    formattedText += `*${labels[idx]}.* ${opt}\n`; 
+  });
+
+  const keyboard = [ 
+    labels.map((label, idx) => ({ 
+      text: label, 
+      callback_data: `answer_${path}_${questionIndex}_${idx}` 
+    })) 
+  ];
+
+  await callTelegram(env, "editMessageText", { 
+    chat_id: chatId, 
+    message_id: messageId, 
+    text: formattedText, 
+    parse_mode: "Markdown", 
+    reply_markup: { inline_keyboard: keyboard } 
+  });
+                                                           }
+      
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
