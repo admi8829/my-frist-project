@@ -141,6 +141,7 @@ export default {
              await sendUnits(env, chatId, messageId, reconstructedData);
           }
         }
+        
      /* } catch (e) {
         return new Response("OK", { status: 200 });
       }
@@ -155,7 +156,7 @@ export default {
           parse_mode: "Markdown"
         });
         return new Response("OK", { status: 200 });
-      };
+      }
           
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
