@@ -58,7 +58,7 @@ export default {
       try {
         const payload = await request.json();
 
-        /* የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
+        // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
         // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
         const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
@@ -66,7 +66,7 @@ export default {
           if (currentTime - msgCheck.date > 30) { 
             return new Response("OK", { status: 200 });
           }
-        }*/
+        }
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
@@ -141,23 +141,18 @@ export default {
              await sendUnits(env, chatId, messageId, reconstructedData);
           }
         }
-        
-     /* } catch (e) {
+      } catch (e) {
         return new Response("OK", { status: 200 });
       }
       return new Response("OK", { status: 200 });
-    }*/      
-      
-      } catch (e) {
-        // ስህተቱን ለአንተ (Admin) በቴሌግራም ይልካል
-        await callTelegram(env, "sendMessage", { 
-          chat_id: env.ADMIN_ID, 
-          text: `⚠️ **Error Detected:**\n\`${e.message}\` \n\n**Stack:** \`${e.stack}\``,
-          parse_mode: "Markdown"
-        });
-        return new Response("OK", { status: 200 });
-      }
-          
+    }
+    return new Response("Bot is active!");
+  },
+};
+            
+
+
+
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
   const welcomeText = `👋 *ሰላም ተማሪ!*\n\n እውቀትዎን ለመፈተን ዝግጁ ነዎት? ከታች የክፍል ደረጃዎን ይምረጡና አሁኑኑ ልምምድ ይጀምሩ! 🚀`;
@@ -234,7 +229,7 @@ async function handleAnswer(env, chatId, messageId, data, fullName) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: feedbackText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
-/*async function handleSeenQuestion(env, chatId, messageId, data) {
+async function handleSeenQuestion(env, chatId, messageId, data) {
   const parts = data.split("_");
   const path = `${parts[1]}_${parts[2]}_${parts[3]}_${parts[4]}`;
   const currentIndex = parseInt(parts[5]);
@@ -247,97 +242,8 @@ async function handleAnswer(env, chatId, messageId, data, fullName) {
   q.options.forEach((opt, idx) => { formattedText += `${idx === q.correct ? "✅" : "🔹"} *${labels[idx]}.* ${opt}\n`; });
   let keyboard = [[{ text: "⬅️ Back to explain ", callback_data: `answer_quiz_${path}_${currentIndex}_-1` }], [{ text: "Next ➡️", callback_data: `next_${path}_${currentIndex + 1}` }]];
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
-}*/
+}
 
-async function sendQuestion(env, chatId, messageId, data, questionIndex) {
-  // data ከ callback የመጣ ነው (ለምሳሌ start_grade_9_phys_1)
-  // path ወደ quiz_grade_9_phys_1 ይቀየራል
-  const path = data.replace("start_", "quiz_"); 
-
-  // --- DEBUGGING LINE: ችግሩን ለማወቅ የሚረዳ ---
-  // አንተ (Admin) ስትጫነው ብቻ ቦቱ የትኛውን Key እንደሚፈልግ ይነግርሃል
-  if (chatId.toString() === env.ADMIN_ID) {
-    await callTelegram(env, "sendMessage", { 
-      chat_id: env.ADMIN_ID, 
-      text: `🔍 **Debug Info:**\nSearching for Key: \`${path}\` \nQuestion Index: \`${questionIndex}\``,
-      parse_mode: "Markdown"
-    });
-  }
-  // -------------------------------------------
-
-  const quizDataRaw = await getD1Value(env, path);
-  
-  if (!quizDataRaw) {
-    await callTelegram(env, "sendMessage", { 
-      chat_id: chatId, 
-      text: `❌ **ይቅርታ!** የዚህ ዩኒት ጥያቄዎች አልተገኙም።\n(Path: \`${path}\`)`,
-      parse_mode: "Markdown"
-    });
-    return;
-  }
-
-  let questions;
-  try {
-    questions = typeof quizDataRaw === 'string' ? JSON.parse(quizDataRaw) : quizDataRaw;
-  } catch (e) {
-    await callTelegram(env, "sendMessage", { 
-      chat_id: env.ADMIN_ID, 
-      text: `⚠️ **JSON Error in ${path}:**\n\`${e.message}\`` 
-    });
-    return;
-  }
-
-  // ፈተናው ካለቀ (ሁሉንም ጥያቄ ጨርሶ ከሆነ)
-  if (questionIndex >= questions.length || questionIndex < 0) {
-    const rawScore = await getD1Value(env, `temp_score_${chatId}`);
-    const finalScore = (rawScore !== null) ? parseInt(rawScore) : 0;
-    
-    const userRes = await callTelegram(env, "getChat", { chat_id: chatId });
-    const userJson = await userRes.json();
-    const fullName = userJson.ok ? (userJson.result.first_name || "Student") : "Student";
-
-    if (finalScore > 0) {
-        await updateScore(env, chatId.toString(), fullName, finalScore);
-    }
-
-    await callTelegram(env, "editMessageText", {
-      chat_id: chatId,
-      message_id: messageId,
-      text: `🎉 **ዩኒቱን አጠናቀዋል!**\n\n🎯 ውጤት: *${finalScore}/${questions.length}*\n\nውጤትዎ በደረጃ ሰንጠረዥ ላይ ተመዝግቧል! 🏆`,
-      parse_mode: "Markdown",
-      reply_markup: { inline_keyboard: [[{ text: "🔙 ወደ ዋናው ማውጫ", callback_data: "back_to_main" }]] }
-    });
-    
-    // ውጤቱን Reset ማድረግ
-    await putD1Value(env, `temp_score_${chatId}`, "0");
-    return;
-  }
-
-  // ጥያቄውን ማሳያ
-  const q = questions[questionIndex];
-  const labels = ["A", "B", "C", "D"];
-  let formattedText = `*ጥያቄ ${questionIndex + 1}/${questions.length}*\n\n${q.question}\n\n`;
-  
-  q.options.forEach((opt, idx) => { 
-    formattedText += `*${labels[idx]}.* ${opt}\n`; 
-  });
-
-  const keyboard = [ 
-    labels.map((label, idx) => ({ 
-      text: label, 
-      callback_data: `answer_${path}_${questionIndex}_${idx}` 
-    })) 
-  ];
-
-  await callTelegram(env, "editMessageText", { 
-    chat_id: chatId, 
-    message_id: messageId, 
-    text: formattedText, 
-    parse_mode: "Markdown", 
-    reply_markup: { inline_keyboard: keyboard } 
-  });
-                                                           }
-      
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
@@ -364,10 +270,10 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
-    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish", "Citizenship"]],
-    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish"]],
-    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish"]]
+    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
+    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Agriculture"]],
+    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Agriculture"]]
   };
 
   const subjects = subjectMap[grade] || [];
@@ -396,20 +302,20 @@ async function sendSubjects(env, chatId, messageId, grade) {
 
 const UNIT_COUNTS = {
   // Grade 9
-  "grade_9_phys": 7, "grade_9_hist": 9, "grade_9_biol": 6, "grade_9_econ": 8,
-  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_enol": 10, "grade_9_citi": 7,
+  "grade_9_phys": 6, "grade_9_hist": 7, "grade_9_biol": 5, "grade_9_econ": 6,
+  "grade_9_chem": 6, "grade_9_geog": 7, "grade_9_engl": 10, "grade_9_citi": 5,
   
   // Grade 10
-  "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
-  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_enol": 10, "grade_10_citi": 8,
+  "grade_10_phys": 6, "grade_10_hist": 7, "grade_10_biol": 6, "grade_10_econ": 6,
+  "grade_10_chem": 6, "grade_10_geog": 7, "grade_10_engl": 10, "grade_10_citi": 5,
 
   // Grade 11
-  "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
-  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_enol": 10, 
+  "grade_11_phys": 8, "grade_11_hist": 8, "grade_11_biol": 7, "grade_11_econ": 7,
+  "grade_11_chem": 8, "grade_11_geog": 8, "grade_11_engl": 12, "grade_11_agri": 6,
 
   // Grade 12
-  "grade_12_phys": 5, "grade_12_hist": 9, "grade_12_biol": 6, "grade_12_econ": 5,
-  "grade_12_chem": 5, "grade_12_geog": 8, "grade_12_enol": 10
+  "grade_12_phys": 8, "grade_12_hist": 8, "grade_12_biol": 7, "grade_12_econ": 7,
+  "grade_12_chem": 8, "grade_12_geog": 8, "grade_12_engl": 12, "grade_12_agri": 6
 };
 
 
@@ -561,4 +467,4 @@ async function sendHelp(env, chatId, messageId) {
     parse_mode: "Markdown", 
     reply_markup: { inline_keyboard: keyboard } 
   });
-
+}
