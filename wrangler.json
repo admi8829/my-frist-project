@@ -1,5 +1,5 @@
 {
   "name": "my-frist-project",
   "compatibility_date": "2026-02-05",
-  "main": "worker(2).js"
+  "main": "worker.js"
 }
