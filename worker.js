@@ -155,15 +155,8 @@ export default {
           parse_mode: "Markdown"
         });
         return new Response("OK", { status: 200 });
-      }
-      
-    return new Response("Bot is active!");
-  },
-};
-            
-
-
-
+      };
+          
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
   const welcomeText = `👋 *ሰላም ተማሪ!*\n\n እውቀትዎን ለመፈተን ዝግጁ ነዎት? ከታች የክፍል ደረጃዎን ይምረጡና አሁኑኑ ልምምድ ይጀምሩ! 🚀`;
