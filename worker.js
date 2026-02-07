@@ -312,7 +312,7 @@ const UNIT_COUNTS = {
 
   // Grade 11
   "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
-  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_engl": 10, 
+  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_math": 10, 
 
   // Grade 12
   "grade_12_phys": 5, "grade_12_hist": 9, "grade_12_biol": 6, "grade_12_econ": 5,
