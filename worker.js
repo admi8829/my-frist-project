@@ -1,4 +1,4 @@
-w// --- Supabase Helper Function ---
+// --- Supabase Helper Function ---
 async function callSupabase(env, table, method, query = "", body = null) {
   const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
   const options = {
@@ -60,14 +60,13 @@ export default {
 
         // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
         // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
-        
-     /**   const msgCheck = payload.message || payload.callback_query?.message;
+        const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
           const currentTime = Math.floor(Date.now() / 1000);
-          if (currentTime - msgCheck.date > 100) { 
+          if (currentTime - msgCheck.date > 30) { 
             return new Response("OK", { status: 200 });
           }
-        }*/
+        }
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
@@ -271,10 +270,10 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
-    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Engish", "Citizenship"]],
-    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Maths"]],
-    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]]
+    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
+    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]],
+    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]]
   };
 
   const subjects = subjectMap[grade] || [];
@@ -304,15 +303,15 @@ async function sendSubjects(env, chatId, messageId, grade) {
 const UNIT_COUNTS = {
   // Grade 9
   "grade_9_phys": 7, "grade_9_hist": 9, "grade_9_biol": 6, "grade_9_econ": 8,
-  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engi": 10, "grade_9_citi": 7,
+  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engl": 10, "grade_9_citi": 7,
   
   // Grade 10
   "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
-  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_math": 10, "grade_10_citi": 8,
+  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_engl": 10, "grade_10_citi": 8,
 
   // Grade 11
   "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
-  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_math": 10, 
+  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_engl": 10, 
 
   // Grade 12
   "grade_12_phys": 5, "grade_12_hist": 9, "grade_12_biol": 6, "grade_12_econ": 5,
