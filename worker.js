@@ -273,7 +273,7 @@ async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
     grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
     grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]],
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Maths"]],
     grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]]
   };
 
@@ -308,7 +308,7 @@ const UNIT_COUNTS = {
   
   // Grade 10
   "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
-  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_maths": 10, "grade_10_citi": 8,
+  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_math": 10, "grade_10_citi": 8,
 
   // Grade 11
   "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
