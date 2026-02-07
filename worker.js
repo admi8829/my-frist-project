@@ -271,10 +271,10 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
-    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
-    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]],
-    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]]
+    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
+    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths", "Citizenship"]],
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]],
+    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["maths"]]
   };
 
   const subjects = subjectMap[grade] || [];
