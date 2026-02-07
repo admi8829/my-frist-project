@@ -270,10 +270,10 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
-    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
-    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]],
-    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]]
+    grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish", "Citizenship"]],
+    grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish", "Citizenship"]],
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish"]],
+    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["Enolish"]]
   };
 
   const subjects = subjectMap[grade] || [];
@@ -303,19 +303,19 @@ async function sendSubjects(env, chatId, messageId, grade) {
 const UNIT_COUNTS = {
   // Grade 9
   "grade_9_phys": 7, "grade_9_hist": 9, "grade_9_biol": 6, "grade_9_econ": 8,
-  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_engl": 10, "grade_9_citi": 7,
+  "grade_9_chem": 5, "grade_9_geog": 8, "grade_9_enol": 10, "grade_9_citi": 7,
   
   // Grade 10
   "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
-  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_engl": 10, "grade_10_citi": 8,
+  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_enol": 10, "grade_10_citi": 8,
 
   // Grade 11
   "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
-  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_engl": 10, 
+  "grade_11_chem": 6, "grade_11_geog": 8, "grade_11_enol": 10, 
 
   // Grade 12
   "grade_12_phys": 5, "grade_12_hist": 9, "grade_12_biol": 6, "grade_12_econ": 5,
-  "grade_12_chem": 5, "grade_12_geog": 8, "grade_12_engl": 10
+  "grade_12_chem": 5, "grade_12_geog": 8, "grade_12_enol": 10
 };
 
 
