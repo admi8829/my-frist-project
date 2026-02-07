@@ -1,4 +1,4 @@
-// --- Supabase Helper Function ---
+w// --- Supabase Helper Function ---
 async function callSupabase(env, table, method, query = "", body = null) {
   const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
   const options = {
@@ -308,7 +308,7 @@ const UNIT_COUNTS = {
   
   // Grade 10
   "grade_10_phys": 6, "grade_10_hist": 9, "grade_10_biol": 6, "grade_10_econ": 8,
-  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_engl": 10, "grade_10_citi": 8,
+  "grade_10_chem": 6, "grade_10_geog": 8, "grade_10_maths": 10, "grade_10_citi": 8,
 
   // Grade 11
   "grade_11_phys": 7, "grade_11_hist": 9, "grade_11_biol": 6, "grade_11_econ": 7,
