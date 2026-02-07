@@ -58,7 +58,7 @@ export default {
       try {
         const payload = await request.json();
 
-        // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
+        /*// የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
         // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
         const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
@@ -66,7 +66,7 @@ export default {
           if (currentTime - msgCheck.date > 30) { 
             return new Response("OK", { status: 200 });
           }
-        }
+        }*/
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
@@ -281,7 +281,7 @@ async function sendSubjects(env, chatId, messageId, grade) {
   // አዝራሮቹ እንደነበሩ በጎን እና በጎን (Two Columns) እንዲሆኑ ተደርጓል
   let keyboard = subjects.map(row => row.map(subName => ({ 
     text: subName, 
-    callback_data: `units_${grade}_${subName.toLowerCase().trim().substring(0, 4)}` 
+    callback_data: `units_${grade}_${subName.trim().substring(0, 4)}` 
   })));
 
   keyboard.push([{ text: "🔙 Back to Main Menu", callback_data: "back_to_main" }]);
