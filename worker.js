@@ -272,8 +272,8 @@ async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
     grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
     grade_10: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
-    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Agriculture"]],
-    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Agriculture"]]
+    grade_11: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English",]],
+    grade_12: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English"]]
   };
 
   const subjects = subjectMap[grade] || [];
