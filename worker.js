@@ -164,7 +164,7 @@ if (payload.callback_query) {
   const data = payload.callback_query.data;
   const fullName = payload.callback_query.from.first_name || "Student";
 
-  // ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
+  /*ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
   if (data === "feed_understood") {
     // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ
     await callTelegram(env, "sendMessage", { 
