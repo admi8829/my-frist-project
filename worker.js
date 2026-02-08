@@ -305,7 +305,6 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
-
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
   // 1. ተጠቃሚዎችን ከ Supabase ማምጣት (በአንድ ጊዜ 500 ተማሪ)
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
@@ -320,7 +319,7 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
     return;
   }
 
-  // 2. የተማሪዎች ግብረመልስ አዝራሮች (መልእክቱ ስር የሚታዩ)
+  // 2. የተማሪዎች ግብረመልስ አዝራሮች
   const feedbackKeyboard = {
     inline_keyboard: [[
       { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
@@ -328,50 +327,82 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
     ]]
   };
 
+  // 3. "/broadcast" የሚለውን ጽሁፍ ከመልእክቱ ላይ ማጽጃ
+  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
   let success = 0, fail = 0;
 
-  // 3. ለእያንዳንዱ ተማሪ መልእክቱን መላክ
+  // 4. ለእያንዳንዱ ተማሪ እንደ ፋይሉ አይነት መላክ
   for (const user of results) {
     try {
-      // copyMessage ማንኛውንም አይነት ፋይል (ቪዲዮ፣ ቮይስ፣ ፋይል...) ያለምንም ለውጥ ኮፒ አድርጎ ይልካል
-      const response = await callTelegram(env, "copyMessage", {
-        chat_id: user.id,
-        from_chat_id: env.ADMIN_ID,
-        message_id: originalMsg.message_id,
-        reply_markup: feedbackKeyboard
-      });
+      let response;
+      const params = { 
+        chat_id: user.id, 
+        reply_markup: feedbackKeyboard, 
+        parse_mode: "Markdown" 
+      };
+
+      if (originalMsg.photo) {
+        response = await callTelegram(env, "sendPhoto", { 
+          ...params, 
+          photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.video) {
+        response = await callTelegram(env, "sendVideo", { 
+          ...params, 
+          video: originalMsg.video.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.voice) {
+        response = await callTelegram(env, "sendVoice", { 
+          ...params, 
+          voice: originalMsg.voice.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.audio) {
+        response = await callTelegram(env, "sendAudio", { 
+          ...params, 
+          audio: originalMsg.audio.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.document) {
+        response = await callTelegram(env, "sendDocument", { 
+          ...params, 
+          document: originalMsg.document.file_id, 
+          caption: cleanText 
+        });
+      } else {
+        // ጽሁፍ ብቻ ከሆነ
+        response = await callTelegram(env, "sendMessage", { 
+          ...params, 
+          text: cleanText || "📢 አዲስ መልእክት ተልኳል።" 
+        });
+      }
       
       const resData = await response.json();
-      if (resData.ok) {
-        success++;
-      } else {
-        // ተማሪው ቦቱን Block ካደረገ እዚህ ጋር ይያዛል
-        fail++;
-      }
+      if (resData.ok) success++; else fail++;
     } catch (e) {
       fail++;
     }
-    
-    // የቴሌግራምን ፍጥነት (Rate Limit) ለመጠበቅ በየ 30 መልእክቱ 1 ሰከንድ እረፍት
+
+    // የቴሌግራምን Rate Limit ለመጠበቅ
     if ((success + fail) % 30 === 0) {
       await new Promise(r => setTimeout(r, 1000));
     }
   }
 
-  // 4. ለአስተዳዳሪው የሪፖርት መልእክት መላክ
+  // 5. ለአስተዳዳሪው ሪፖርት መላክ
   const reportMsg = `📊 **የብሮድካስት ሪፖርት**\n\n` +
-                    `✅ በተሳካ ሁኔታ የደረሳቸው: ${success}\n` +
-                    `❌ ያልደረሳቸው (Blocked/Error): ${fail}\n\n` +
-                    `📍 ቀጣይ ተማሪዎችን ለመላክ ይህን ይጫኑ: \`/broadcast_${offset + 500}\``;
+                    `✅ በተሳካ ሁኔታ የተላከ: ${success}\n` +
+                    `❌ ያልተላከ (Blocked/Error): ${fail}\n\n` +
+                    `📍 ቀጣይ 500 ተማሪዎችን ለመላክ ይህን ይጫኑ: \`/broadcast_${offset + 500}\``;
 
   await callTelegram(env, "sendMessage", { 
     chat_id: env.ADMIN_ID, 
     text: reportMsg,
     parse_mode: "Markdown"
   });
-}
-
-
+  }
 
 
 async function sendSubjects(env, chatId, messageId, grade) {
