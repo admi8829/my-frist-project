@@ -157,25 +157,63 @@ async function callTelegram(env, method, body) {
           }
         }
 
-        // --- 5. Callback Queries (አዝራሮች ሲጫኑ) ---
-        if (payload.callback_query) {
-          const chatId = payload.callback_query.message.chat.id;
-          const messageId = payload.callback_query.message.message_id;
-          const data = payload.callback_query.data;
-          const fullName = payload.callback_query.from.first_name || "Student";
+        // --- Callback Query (አዝራሮች ሲጫኑ የሚሰራ) ---
+if (payload.callback_query) {
+  const chatId = payload.callback_query.message.chat.id;
+  const messageId = payload.callback_query.message.message_id;
+  const data = payload.callback_query.data;
+  const fullName = payload.callback_query.from.first_name || "Student";
 
-          // "እሺ ገብቶኛል" ሲል
-          if (data === "feed_understood") {
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `✅ ተማሪ ${fullName} (ID: ${chatId}) መልእክቱ እንደገባው አረጋግጧል።` });
-            await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: "አመሰግናለን! መልእክቱ እንደደረሰዎት ተመዝግቧል።" });
-          } 
-          
-          // "ጥያቄ አለኝ" ሲል
-          else if (data === "ask_question") {
-            await putD1Value(env, `asking_${chatId}`, "true"); // ተማሪው ጥያቄ እንዲልክ ስቴት መፍጠር
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "❓ እባክዎ ጥያቄዎን እዚህ ይጻፉ ወይም በፎቶ/በድምፅ ይላኩ።" });
-            await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id });
-          }
+  // ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
+  if (data === "feed_understood") {
+    // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: `✅ ተማሪ ${fullName} (ID: ${chatId}) መልእክቱ እንደደረሰውና እንደተረዳው አረጋግጧል።` 
+    });
+
+    // 2. ለተማሪው መልእክቱን ወደ "እናመሰግናለን" መቀየር
+    // መልእክቱ ሚዲያ (ፎቶ/ቪዲዮ) ከሆነ Caption ነው የሚቀየረው
+    const msg = payload.callback_query.message;
+    const isMedia = msg.photo || msg.video || msg.voice || msg.audio || msg.document;
+    
+    const thankYouText = "🙏 እናመሰግናለን! መልእክቱ እንደደረሰዎት እና እንደተረዱት ተመዝግቧል። መልካም ቆይታ!";
+
+    if (isMedia) {
+      await callTelegram(env, "editMessageCaption", { 
+        chat_id: chatId, 
+        message_id: messageId, 
+        caption: thankYouText,
+        reply_markup: { inline_keyboard: [] } // አዝራሮቹን ያጠፋል
+      });
+    } else {
+      await callTelegram(env, "editMessageText", { 
+        chat_id: chatId, 
+        message_id: messageId, 
+        text: thankYouText,
+        reply_markup: { inline_keyboard: [] } // አዝራሮቹን ያጠፋል
+      });
+    }
+
+    // 3. ትንሽ ፖፕ አፕ ማሳየት
+    await callTelegram(env, "answerCallbackQuery", { 
+      callback_query_id: payload.callback_query.id, 
+      text: "ምላሽዎ ተመዝግቧል!" 
+    });
+    return;
+  }
+  
+  // --- ተማሪው "ጥያቄ አለኝ" ሲል ---
+  else if (data === "ask_question") {
+    await putD1Value(env, `asking_${chatId}`, "true");
+    await callTelegram(env, "sendMessage", { 
+      chat_id: chatId, 
+      text: "❓ እባክዎ ጥያቄዎን አሁን ይጻፉ (ጽሁፍ፣ ፎቶ ወይም ድምፅ መላክ ይችላሉ)።" 
+    });
+    await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id });
+    return;
+  }
+
 
           // --- የተቀሩት የ Quiz ተግባራት ---
           else if (data.startsWith("grade_")) await sendSubjects(env, chatId, messageId, data);
