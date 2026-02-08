@@ -157,7 +157,7 @@ async function callTelegram(env, method, body) {
           }
         }
 
-        // --- Callback Query (አዝራሮች ሲጫኑ የሚሰራ) ---
+        /*--- Callback Query (አዝራሮች ሲጫኑ የሚሰራ) ---
 if (payload.callback_query) {
   const chatId = payload.callback_query.message.chat.id;
   const messageId = payload.callback_query.message.message_id;
@@ -203,7 +203,7 @@ if (payload.callback_query) {
     return;
   }
     // ተማሪው "✅ ተረድቻለሁ" ሲል (ለብሮድካስትም ለግልም)
-/*if (data === "feed_understood") {
+if (data === "feed_understood") {
   // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ (አንድ ጊዜ ብቻ)
   // ተማሪው ደጋግሞ ቢጫነው እንኳ አዝራሩ ስለሚጠፋ መልእክቱ አንዴ ብቻ ነው የሚመጣው
   await callTelegram(env, "sendMessage", { 
@@ -226,7 +226,7 @@ if (payload.callback_query) {
   });
   
   return;
-}*/
+}
   
   // --- ተማሪው "ጥያቄ አለኝ" ሲል ---
   else if (data === "ask_question") {
@@ -237,7 +237,7 @@ if (payload.callback_query) {
     });
     await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id });
     return;
-  }
+  }*/
 
 
           // --- የተቀሩት የ Quiz ተግባራት ---
