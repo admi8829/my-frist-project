@@ -51,7 +51,6 @@ async function callTelegram(env, method, body) {
     body: JSON.stringify(body) 
   });
 }
-
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST") {
