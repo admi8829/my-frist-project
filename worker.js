@@ -149,6 +149,8 @@ async function callTelegram(env, method, body) {
     return new Response("Bot is active!");
   },
 };*/
+
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST") {
@@ -303,40 +305,6 @@ export default {
     return new Response("Bot is active!");
   },
 };
-
-// --- Updated Broadcast Function ---
-async function handleAdvancedBroadcast(env, originalMsg, offset) {
-  const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
-  const results = await res.json();
-  if (!results || results.length === 0) {
-    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
-    return;
-  }
-
-  const feedbackKeyboard = {
-    inline_keyboard: [[
-      { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
-      { text: "❓ ጥያቄ አለኝ", callback_data: "feed_question" }
-    ]]
-  };
-
-  let success = 0, fail = 0;
-  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
-  
-  for (const user of results) {
-    try {
-      let response;
-      const params = { chat_id: user.id, reply_markup: feedbackKeyboard, parse_mode: "Markdown" };
-      if (originalMsg.photo) {
-        response = await callTelegram(env, "sendPhoto", { ...params, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText });
-      } else {
-        response = await callTelegram(env, "sendMessage", { ...params, text: cleanText });
-      }
-      if ((await response.json()).ok) success++; else fail++;
-    } catch (e) { fail++; }
-  }
-  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
-      }
 
 
 
