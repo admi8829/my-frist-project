@@ -531,7 +531,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
-async function handleAdvancedBroadcast(env, originalMsg, offset) {
+/*async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
   if (!results || results.length === 0) {
@@ -540,7 +540,7 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
   }
   let success = 0, fail = 0;
   let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
-  for (const user of results) {
+/*  for (const user of results) {
     try {
       let response;
       if (originalMsg.photo) {
@@ -553,7 +553,41 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
     if ((success + fail) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
   }
   await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
+}*/
+// --- Updated Broadcast Function ---
+async function handleAdvancedBroadcast(env, originalMsg, offset) {
+  const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
+  const results = await res.json();
+  if (!results || results.length === 0) {
+    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
+    return;
+  }
+
+  const feedbackKeyboard = {
+    inline_keyboard: [[
+      { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
+      { text: "❓ ጥያቄ አለኝ", callback_data: "feed_question" }
+    ]]
+  };
+
+  let success = 0, fail = 0;
+  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
+  
+  for (const user of results) {
+    try {
+      let response;
+      const params = { chat_id: user.id, reply_markup: feedbackKeyboard, parse_mode: "Markdown" };
+      if (originalMsg.photo) {
+        response = await callTelegram(env, "sendPhoto", { ...params, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText });
+      } else {
+        response = await callTelegram(env, "sendMessage", { ...params, text: cleanText });
+      }
+      if ((await response.json()).ok) success++; else fail++;
+    } catch (e) { fail++; }
+  }
+  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
 }
+
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
