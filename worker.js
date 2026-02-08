@@ -164,7 +164,7 @@ if (payload.callback_query) {
   const data = payload.callback_query.data;
   const fullName = payload.callback_query.from.first_name || "Student";
 
-/*ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
+ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
   if (data === "feed_understood") {
     // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ
     await callTelegram(env, "sendMessage", { 
@@ -201,9 +201,9 @@ if (payload.callback_query) {
       text: "ምላሽዎ ተመዝግቧል!" 
     });
     return;
-  }*/
+  }
     // ተማሪው "✅ ተረድቻለሁ" ሲል (ለብሮድካስትም ለግልም)
-if (data === "feed_understood") {
+/*if (data === "feed_understood") {
   // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ (አንድ ጊዜ ብቻ)
   // ተማሪው ደጋግሞ ቢጫነው እንኳ አዝራሩ ስለሚጠፋ መልእክቱ አንዴ ብቻ ነው የሚመጣው
   await callTelegram(env, "sendMessage", { 
@@ -226,7 +226,7 @@ if (data === "feed_understood") {
   });
   
   return;
-}
+}*/
   
   // --- ተማሪው "ጥያቄ አለኝ" ሲል ---
   else if (data === "ask_question") {
