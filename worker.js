@@ -458,12 +458,12 @@ export default {
       try {
         const payload = await request.json();
 
-        // ጊዜ ያለፈባቸውን መልእክቶች (ከ5 ደቂቃ በላይ) ችላ ለማለት
+        /*ጊዜ ያለፈባቸውን መልእክቶች (ከ5 ደቂቃ በላይ) ችላ ለማለት
         const msgCheck = payload.message || payload.callback_query?.message;
         if (msgCheck && msgCheck.date) {
           const currentTime = Math.floor(Date.now() / 1000);
           if (currentTime - msgCheck.date > 300) return new Response("OK");
-        }
+        }*/
 
         if (payload.message) {
           const chatId = payload.message.chat.id;
