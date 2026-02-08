@@ -398,30 +398,112 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   let keyboard = [[{ text: "⬅️ Back to explain ", callback_data: `answer_quiz_${path}_${currentIndex}_-1` }], [{ text: "Next ➡️", callback_data: `next_${path}_${currentIndex + 1}` }]];
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
-
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
+  // 1. ተጠቃሚዎችን ከ Supabase ማምጣት (በአንድ ጊዜ 500 ተማሪ)
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
+  
   if (!results || results.length === 0) {
-    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: "✅ **ብሮድካስቱ ተጠናቋል።** ሁሉም ተማሪዎች ጋር ደርሷል።",
+      parse_mode: "Markdown"
+    });
     return;
   }
-  let success = 0, fail = 0;
+
+  // 2. የተማሪዎች ግብረመልስ አዝራሮች
+  const feedbackKeyboard = {
+    inline_keyboard: [[
+      { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
+      { text: "❓ ጥያቄ አለኝ", callback_data: "ask_question" }
+    ]]
+  };
+
+  // 3. "/broadcast" የሚለውን ጽሁፍ ከመልእክቱ ላይ ማጽጃ
   let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
+  let success = 0, fail = 0;
+
+  // 4. ለእያንዳንዱ ተማሪ እንደ ፋይሉ አይነት መላክ
   for (const user of results) {
     try {
       let response;
+      const params = { 
+        chat_id: user.id, 
+        reply_markup: feedbackKeyboard, 
+        parse_mode: "Markdown" 
+      };
+
       if (originalMsg.photo) {
-        response = await callTelegram(env, "sendPhoto", { chat_id: user.id, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText, parse_mode: "Markdown" });
+        response = await callTelegram(env, "sendPhoto", { 
+          ...params, 
+          photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.video) {
+        response = await callTelegram(env, "sendVideo", { 
+          ...params, 
+          video: originalMsg.video.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.voice) {
+        response = await callTelegram(env, "sendVoice", { 
+          ...params, 
+          voice: originalMsg.voice.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.audio) {
+        response = await callTelegram(env, "sendAudio", { 
+          ...params, 
+          audio: originalMsg.audio.file_id, 
+          caption: cleanText 
+        });
+      } else if (originalMsg.document) {
+        response = await callTelegram(env, "sendDocument", { 
+          ...params, 
+          document: originalMsg.document.file_id, 
+          caption: cleanText 
+        });
       } else {
-        response = await callTelegram(env, "sendMessage", { chat_id: user.id, text: cleanText, parse_mode: "Markdown" });
+        // ጽሁፍ ብቻ ከሆነ
+        response = await callTelegram(env, "sendMessage", { 
+          ...params, 
+          text: cleanText || "📢 አዲስ መልእክት ተልኳል።" 
+        });
       }
-      if ((await response.json()).ok) success++; else fail++;
-    } catch (e) { fail++; }
-    if ((success + fail) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
+      
+      const resData = await response.json();
+      if (resData.ok) success++; else fail++;
+    } catch (e) {
+      fail++;
+    }
+
+    // የቴሌግራምን Rate Limit ለመጠበቅ
+    if ((success + fail) % 30 === 0) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
-  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
+
+  // 5. ለአስተዳዳሪው ሪፖርት መላክ
+  const reportMsg = `📊 **የብሮድካስት ሪፖርት**\n\n` +
+                    `✅ በተሳካ ሁኔታ የተላከ: ${success}\n` +
+                    `❌ ያልተላከ (Blocked/Error): ${fail}\n\n` +
+                    `📍 ቀጣይ 500 ተማሪዎችን ለመላክ ይህን ይጫኑ: \`/broadcast_${offset + 500}\``;
+
+  await callTelegram(env, "sendMessage", { 
+    chat_id: env.ADMIN_ID, 
+    text: reportMsg,
+    parse_mode: "Markdown"
+  });
 }
+
+
+
+
+
+
+
+
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
