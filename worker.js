@@ -1,4 +1,4 @@
-// --- Supabase Helper Function ---
+/*// --- Supabase Helper Function ---
 async function callSupabase(env, table, method, query = "", body = null) {
   const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
   const options = {
@@ -201,7 +201,7 @@ if (payload.callback_query) {
       text: "ምላሽዎ ተመዝግቧል!" 
     });
     return;
-  }*/
+  }
     // ተማሪው "✅ ተረድቻለሁ" ሲል (ለብሮድካስትም ለግልም)
 if (data === "feed_understood") {
   // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ (አንድ ጊዜ ብቻ)
@@ -272,8 +272,221 @@ if (data === "feed_understood") {
     }
     return new Response("Bot is active!");
   },
-};
+};*/
+// --- Supabase Helper Function ---
+async function callSupabase(env, table, method, query = "", body = null) {
+  const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
+  const options = {
+    method: method,
+    headers: {
+      "apikey": env.SUPABASE_KEY,
+      "Authorization": `Bearer ${env.SUPABASE_KEY}`,
+      "Content-Type": "application/json",
+      "Prefer": "return=representation,resolution=merge-duplicates"
+    }
+  };
+  if (body) options.body = JSON.stringify(body);
+  return fetch(url, options);
+}
+
+// --- Helper Functions ---
+async function putD1Value(env, key, value) {
+  const body = { key: key, value: value }; 
+  await callSupabase(env, "kv_store", "POST", "", body);
+}
+
+async function getD1Value(env, key) {
+  const res = await callSupabase(env, "kv_store", "GET", `?key=eq.${key}&select=value`);
+  const data = await res.json();
+  if (data && data.length > 0) {
+    return data[0].value;
+  }
+  return null;
+}
+
+async function saveUser(env, userId) {
+  await callSupabase(env, "users", "POST", "", { id: userId });
+}
+
+async function updateScore(env, chatId, fullName, finalScore) {
+  const res = await callSupabase(env, "scores", "GET", `?user_id=eq.${chatId}`);
+  const data = await res.json();
+  if (data && data.length > 0) {
+    const newScore = (data[0].total_score || 0) + finalScore;
+    await callSupabase(env, "scores", "PATCH", `?user_id=eq.${chatId}`, { total_score: newScore, full_name: fullName });
+  } else {
+    await callSupabase(env, "scores", "POST", "", { user_id: chatId, full_name: fullName, total_score: finalScore });
+  }
+}
+
+async function callTelegram(env, method, body) {
+  return fetch(`https://api.telegram.org/bot${env.TOKEN}/${method}`, { 
+    method: "POST", 
+    headers: { "Content-Type": "application/json" }, 
+    body: JSON.stringify(body) 
+  });
+}
+
+export default {
+  async fetch(request, env, ctx) {
+    if (request.method === "POST") {
+      try {
+        const payload = await request.json();
+        
+        if (payload.message) {
+          const chatId = payload.message.chat.id;
+          const text = payload.message.text || payload.message.caption || "";
+          const user = payload.message.from;
+          const fullName = user.first_name || "Student";
+
+          await saveUser(env, chatId.toString());
+
+          if (text.startsWith("/start")) {
+            await sendStartMenu(env, chatId, null, fullName);
+          } 
+          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/broadcast")) {
+            const offset = parseInt(text.split("_")[1]) || 0;
+            await handleAdvancedBroadcast(env, payload.message, offset);
+          }
+          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/reply_")) {
+            const parts = text.split(" ");
+            const targetId = parts[0].split("_")[1];
+            const replyText = parts.slice(1).join(" ");
+            
+            const privateKeyboard = {
+              inline_keyboard: [[
+                { text: "✅ እሺ ገብቶኛል", callback_data: "feed_understood" },
+                { text: "❓ ጥያቄ አለኝ", callback_data: "ask_question" }
+              ]]
+            };
+
+            try {
+              let response;
+              if (payload.message.reply_to_message) {
+                response = await callTelegram(env, "copyMessage", {
+                  chat_id: targetId,
+                  from_chat_id: env.ADMIN_ID,
+                  message_id: payload.message.reply_to_message.message_id,
+                  reply_markup: privateKeyboard
+                });
+                if (replyText.trim().length > 0) {
+                  await callTelegram(env, "sendMessage", { chat_id: targetId, text: replyText });
+                }
+              } 
+              else {
+                response = await callTelegram(env, "sendMessage", { 
+                  chat_id: targetId, 
+                  text: `📩 *ከአስተዳዳሪው የተላከ መልእክት:*\n\n${replyText}`, 
+                  parse_mode: "Markdown",
+                  reply_markup: privateKeyboard
+                });
+              }
+
+              const result = await response.json();
+              if (result.ok) {
+                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ መልእክቱ ለተማሪው ደርሷል።" });
+              } else {
+                let msg = result.description.includes("blocked") ? "🚫 ተማሪው ቦቱን Block አድርጎታል።" : "❌ አልተላከም፦ " + result.description;
+                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: msg });
+              }
+            } catch (e) {
+              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "⚠️ ስህተት አጋጥሟል።" });
+            }
+          }
+          else if (chatId.toString() !== env.ADMIN_ID) {
+            const isAsking = await getD1Value(env, `asking_${chatId}`);
+            if (isAsking === "true") {
+              await callTelegram(env, "sendMessage", { 
+                chat_id: env.ADMIN_ID, 
+                text: `❓ *አዲስ ጥያቄ ከ:* ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \`\n\nጥያቄው ከታች ይገኛል፦`, 
+                parse_mode: "Markdown" 
+              });
+              await callTelegram(env, "copyMessage", { chat_id: env.ADMIN_ID, from_chat_id: chatId, message_id: payload.message.message_id });
+              await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ደርሷል። አስተዳዳሪው እስኪመልስልዎ ድረስ እባክዎ ጥቂት ደቂቃዎችን ይጠብቁ።" });
+              await putD1Value(env, `asking_${chatId}`, "false");
+            } else {
+              await callTelegram(env, "sendMessage", { 
+                chat_id: env.ADMIN_ID, 
+                text: `💬 *አስተያየት ከ:* ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \``, 
+                parse_mode: "Markdown" 
+              });
+              await callTelegram(env, "copyMessage", { chat_id: env.ADMIN_ID, from_chat_id: chatId, message_id: payload.message.message_id });
+              await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
+            }
+          }
+        }
+
+        if (payload.callback_query) {
+          const chatId = payload.callback_query.message.chat.id;
+          const messageId = payload.callback_query.message.message_id;
+          const data = payload.callback_query.data;
+          const fullName = payload.callback_query.from.first_name || "Student";
+
+          // --- የተቀየረው የ "ተረድቻለሁ" ክፍል ---
+          if (data === "feed_understood") {
+            // 1. ለተማሪው ፈጣን ማረጋገጫ መስጠት (Alert ሳይሆን እንደ ትንሿ ጥቁር ጽሁፍ)
+            await callTelegram(env, "answerCallbackQuery", { 
+              callback_query_id: payload.callback_query.id, 
+              text: "🙏 እናመሰግናለን! ምላሽዎ ተመዝግቧል።"
+            });
+
+            // 2. የተማሪው ስክሪን ላይ ያሉትን አዝራሮች (Buttons) ማጥፋት
+            await callTelegram(env, "editMessageReplyMarkup", { 
+              chat_id: chatId, 
+              message_id: messageId, 
+              reply_markup: { inline_keyboard: [] } 
+            });
+
+            // ለአድሚን የሚልከው ኮድ ተወግዷል
+            return;
+          }
           
+          else if (data === "ask_question") {
+            await putD1Value(env, `asking_${chatId}`, "true");
+            await callTelegram(env, "sendMessage", { 
+              chat_id: chatId, 
+              text: "❓ እባክዎ ጥያቄዎን አሁን ይጻፉ (ጽሁፍ፣ ፎቶ ወይም ድምፅ መላክ ይችላሉ)።" 
+            });
+            await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id });
+            return;
+          }
+
+          else if (data.startsWith("grade_")) await sendSubjects(env, chatId, messageId, data);
+          else if (data.startsWith("units_")) await sendUnits(env, chatId, messageId, data);
+          else if (data.startsWith("prequiz_")) await sendPreQuizMenu(env, chatId, messageId, data);
+          else if (data.startsWith("start_")) {
+            await putD1Value(env, `temp_score_${chatId}`, "0");
+            await sendQuestion(env, chatId, messageId, data, 0); 
+          } else if (data.startsWith("next_")) {
+            const parts = data.split("_");
+            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
+            const nextIdx = parseInt(parts[5]);
+            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
+          } else if (data.startsWith("answer_")) await handleAnswer(env, chatId, messageId, data, fullName);
+          else if (data.startsWith("seen_")) await handleSeenQuestion(env, chatId, messageId, data);
+          else if (data === "contact") await sendContact(env, chatId, messageId);
+          else if (data === "help") await sendHelp(env, chatId, messageId);
+          else if (data === "leaderboard") await sendLeaderboard(env, chatId, messageId);
+          else if (data === "back_to_main") await sendStartMenu(env, chatId, messageId, fullName);
+          else if (data.startsWith("back_to_grade_")) await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
+          else if (data.startsWith("back_to_units_")) {
+             const parts = data.split("_");
+             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
+             await sendUnits(env, chatId, messageId, reconstructedData);
+          }
+        }
+      } catch (e) {
+        return new Response("OK", { status: 200 });
+      }
+      return new Response("OK", { status: 200 });
+    }
+    return new Response("Bot is active!");
+  },
+};
+
+// --- GUI Functions & Logic (ልክ እንደነበረው ይቀጥላል) ---
+// (ከዚህ በታች ያሉትን sendStartMenu, handleAdvancedBroadcast ወዘተ. ኮድህ ውስጥ እንዳሉ ጨምራቸው)
+              
 
 
 
