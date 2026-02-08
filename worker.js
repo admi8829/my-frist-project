@@ -244,30 +244,81 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
+
+// --- አዲሱ የብሮድካስት እና ፋይል መላኪያ ሲስተም ---
+
+async function forwardAnyMessage(env, chatId, message) {
+  const common = { chat_id: chatId, parse_mode: "Markdown" };
+  const caption = message.caption || "";
+  const text = message.text || "";
+
+  try {
+    if (message.photo) {
+      return await callTelegram(env, "sendPhoto", { ...common, photo: message.photo[message.photo.length - 1].file_id, caption: caption });
+    } else if (message.video) {
+      return await callTelegram(env, "sendVideo", { ...common, video: message.video.file_id, caption: caption });
+    } else if (message.document) {
+      return await callTelegram(env, "sendDocument", { ...common, document: message.document.file_id, caption: caption });
+    } else if (message.audio) {
+      return await callTelegram(env, "sendAudio", { ...common, audio: message.audio.file_id, caption: caption });
+    } else if (message.voice) {
+      return await callTelegram(env, "sendVoice", { ...common, voice: message.voice.file_id, caption: caption });
+    } else if (message.video_note) {
+      return await callTelegram(env, "sendVideoNote", { chat_id: chatId, video_note: message.video_note.file_id });
+    } else if (message.sticker) {
+      return await callTelegram(env, "sendSticker", { chat_id: chatId, sticker: message.sticker.file_id });
+    } else if (text) {
+      return await callTelegram(env, "sendMessage", { ...common, text: text });
+    }
+    return { ok: false };
+  } catch (e) {
+    return { ok: false };
+  }
+}
+
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
+  
   if (!results || results.length === 0) {
-    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
+    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ በስኬት ተጠናቋል።" });
     return;
   }
-  let success = 0, fail = 0;
-  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
+
+  let success = 0;
+  let blocked = 0;
+  
+  let broadcastMsg = { ...originalMsg };
+  const cmdRegex = /\/broadcast(_\d+)?\s*/;
+  if (broadcastMsg.text) broadcastMsg.text = broadcastMsg.text.replace(cmdRegex, "");
+  if (broadcastMsg.caption) broadcastMsg.caption = broadcastMsg.caption.replace(cmdRegex, "");
+
   for (const user of results) {
     try {
-      let response;
-      if (originalMsg.photo) {
-        response = await callTelegram(env, "sendPhoto", { chat_id: user.id, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText, parse_mode: "Markdown" });
+      const response = await forwardAnyMessage(env, user.id, broadcastMsg);
+      const data = await response.json();
+      
+      if (data && data.ok) {
+        success++;
       } else {
-        response = await callTelegram(env, "sendMessage", { chat_id: user.id, text: cleanText, parse_mode: "Markdown" });
+        blocked++;
       }
-      if ((await response.json()).ok) success++; else fail++;
-    } catch (e) { fail++; }
-    if ((success + fail) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      blocked++; 
+    }
+    
+    if ((success + blocked) % 30 === 0) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
-  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
-}
 
+  const report = `📊 **የብሮድካስት ሪፖርት (ከ ${offset} ጀምሮ)**\n\n` +
+                 `✅ የደረሳቸው ተማሪዎች: \`${success}\`\n` +
+                 `🚫 Block ያደረጉ/የማይሰሩ: \`${blocked}\`\n\n` +
+                 `ቀጣዩን 500 ለመላክ: \`/broadcast_${offset + 500}\``;
+
+  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: report, parse_mode: "Markdown" });
+}
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
     grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English", "Citizenship"]],
