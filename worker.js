@@ -305,29 +305,74 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
+
 async function handleAdvancedBroadcast(env, originalMsg, offset) {
+  // 1. ተጠቃሚዎችን ከ Supabase ማምጣት (በአንድ ጊዜ 500 ተማሪ)
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
+  
   if (!results || results.length === 0) {
-    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: "✅ **ብሮድካስቱ ተጠናቋል።** ሁሉም ተማሪዎች ጋር ደርሷል።",
+      parse_mode: "Markdown"
+    });
     return;
   }
+
+  // 2. የተማሪዎች ግብረመልስ አዝራሮች (መልእክቱ ስር የሚታዩ)
+  const feedbackKeyboard = {
+    inline_keyboard: [[
+      { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
+      { text: "❓ ጥያቄ አለኝ", callback_data: "ask_question" }
+    ]]
+  };
+
   let success = 0, fail = 0;
-  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
+
+  // 3. ለእያንዳንዱ ተማሪ መልእክቱን መላክ
   for (const user of results) {
     try {
-      let response;
-      if (originalMsg.photo) {
-        response = await callTelegram(env, "sendPhoto", { chat_id: user.id, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText, parse_mode: "Markdown" });
+      // copyMessage ማንኛውንም አይነት ፋይል (ቪዲዮ፣ ቮይስ፣ ፋይል...) ያለምንም ለውጥ ኮፒ አድርጎ ይልካል
+      const response = await callTelegram(env, "copyMessage", {
+        chat_id: user.id,
+        from_chat_id: env.ADMIN_ID,
+        message_id: originalMsg.message_id,
+        reply_markup: feedbackKeyboard
+      });
+      
+      const resData = await response.json();
+      if (resData.ok) {
+        success++;
       } else {
-        response = await callTelegram(env, "sendMessage", { chat_id: user.id, text: cleanText, parse_mode: "Markdown" });
+        // ተማሪው ቦቱን Block ካደረገ እዚህ ጋር ይያዛል
+        fail++;
       }
-      if ((await response.json()).ok) success++; else fail++;
-    } catch (e) { fail++; }
-    if ((success + fail) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
+    } catch (e) {
+      fail++;
+    }
+    
+    // የቴሌግራምን ፍጥነት (Rate Limit) ለመጠበቅ በየ 30 መልእክቱ 1 ሰከንድ እረፍት
+    if ((success + fail) % 30 === 0) {
+      await new Promise(r => setTimeout(r, 1000));
+    }
   }
-  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
+
+  // 4. ለአስተዳዳሪው የሪፖርት መልእክት መላክ
+  const reportMsg = `📊 **የብሮድካስት ሪፖርት**\n\n` +
+                    `✅ በተሳካ ሁኔታ የደረሳቸው: ${success}\n` +
+                    `❌ ያልደረሳቸው (Blocked/Error): ${fail}\n\n` +
+                    `📍 ቀጣይ ተማሪዎችን ለመላክ ይህን ይጫኑ: \`/broadcast_${offset + 500}\``;
+
+  await callTelegram(env, "sendMessage", { 
+    chat_id: env.ADMIN_ID, 
+    text: reportMsg,
+    parse_mode: "Markdown"
+  });
 }
+
+
+
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
