@@ -145,7 +145,6 @@ export default {
           }
         }
 
-            } 
           if (data.startsWith("grade_")) {
             await sendSubjects(env, chatId, messageId, data);
           } else if (data.startsWith("units_")) {
@@ -179,7 +178,7 @@ export default {
              const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
              await sendUnits(env, chatId, messageId, reconstructedData);
           }
-        }
+        
       } catch (e) {
         return new Response("OK", { status: 200 });
       }
