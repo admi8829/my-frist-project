@@ -52,236 +52,6 @@ async function callTelegram(env, method, body) {
   });
 }
 
-/*export default {
-  async fetch(request, env, ctx) {
-    if (request.method === "POST") {
-      try {
-        const payload = await request.json();
-
-        /* የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
-        // ሰዓቱን ከ60 ወደ 300 የቀየርኩት በሰርቨሮች መካከል የሰዓት ልዩነት ቢኖር እንኳ እንዳይዘጋብህ ነው
-        const msgCheck = payload.message || payload.callback_query?.message;
-        if (msgCheck && msgCheck.date) {
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (currentTime - msgCheck.date > 30) { 
-            return new Response("OK", { status: 200 });
-          }
-        }
-
-        if (payload.message) {
-          const chatId = payload.message.chat.id;
-          const text = payload.message.text || payload.message.caption || "";
-          const user = payload.message.from;
-          const fullName = user.first_name || "Student";
-
-          await saveUser(env, chatId.toString());
-
-          if (text.startsWith("/start")) {
-            await sendStartMenu(env, chatId, null, fullName);
-          } 
-          
-          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/broadcast")) {
-            const offset = parseInt(text.split("_")[1]) || 0;
-            await handleAdvancedBroadcast(env, payload.message, offset);
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `⏳ ብሮድካስት ተጀምሯል...` });
-          }
-        
-          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/reply_")) {
-            const parts = text.split(" ");
-            const targetId = parts[0].split("_")[1];
-            const replyText = parts.slice(1).join(" ");
-            await callTelegram(env, "sendMessage", { chat_id: targetId, text: `📩 *Message from Admin:*\n\n${replyText}`, parse_mode: "Markdown" });
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ Sent successfully." });
-          }
-          
-          else if (chatId.toString() !== env.ADMIN_ID) {
-            const adminMsg = `💬 *New Feedback*\n\nFrom: ${fullName}\nID: \`${chatId}\`\n\nMessage: ${text}\n\nReply: \`/reply_${chatId} \``;
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: adminMsg, parse_mode: "Markdown" });
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
-          }
-        }
-
-        if (payload.callback_query) {
-          const chatId = payload.callback_query.message.chat.id;
-          const messageId = payload.callback_query.message.message_id;
-          const data = payload.callback_query.data;
-          const fullName = payload.callback_query.from.first_name || "Student";
-
-          if (data.startsWith("grade_")) {
-            await sendSubjects(env, chatId, messageId, data);
-          } else if (data.startsWith("units_")) {
-            await sendUnits(env, chatId, messageId, data);
-          } else if (data.startsWith("prequiz_")) {
-            await sendPreQuizMenu(env, chatId, messageId, data);
-          } else if (data.startsWith("start_")) {
-            await putD1Value(env, `temp_score_${chatId}`, "0");
-            await sendQuestion(env, chatId, messageId, data, 0); 
-          } else if (data.startsWith("next_")) {
-            const parts = data.split("_");
-            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
-            const nextIdx = parseInt(parts[5]);
-            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
-          } else if (data.startsWith("answer_")) {
-            await handleAnswer(env, chatId, messageId, data, fullName);
-          } else if (data.startsWith("seen_")) {
-            await handleSeenQuestion(env, chatId, messageId, data);
-          } else if (data === "contact") {
-            await sendContact(env, chatId, messageId);
-          } else if (data === "help") {
-            await sendHelp(env, chatId, messageId);
-          } else if (data === "leaderboard") {
-            await sendLeaderboard(env, chatId, messageId);
-          } else if (data === "back_to_main") {
-            await sendStartMenu(env, chatId, messageId, fullName);
-          } else if (data.startsWith("back_to_grade_")) {
-            await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
-          } else if (data.startsWith("back_to_units_")) {
-             const parts = data.split("_");
-             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
-             await sendUnits(env, chatId, messageId, reconstructedData);
-          }
-        }
-      } catch (e) {
-        return new Response("OK", { status: 200 });
-      }
-      return new Response("OK", { status: 200 });
-    }
-    return new Response("Bot is active!");
-  },
-};
-export default {
-  async fetch(request, env, ctx) {
-    if (request.method === "POST") {
-      try {
-        const payload = await request.json();
-
-        // የቆዩ መልእክቶችን (ከ5 ደቂቃ በላይ የሆኑትን) ችላ ለማለት
-        const msgCheck = payload.message || payload.callback_query?.message;
-        if (msgCheck && msgCheck.date) {
-          const currentTime = Math.floor(Date.now() / 1000);
-          if (currentTime - msgCheck.date > 300) { 
-            return new Response("OK", { status: 200 });
-          }
-        }
-
-        if (payload.message) {
-          const chatId = payload.message.chat.id;
-          const text = payload.message.text || payload.message.caption || "";
-          const user = payload.message.from;
-          const fullName = user.first_name || "Student";
-
-          await saveUser(env, chatId.toString());
-
-          // --- Start Command ---
-          if (text.startsWith("/start")) {
-            await sendStartMenu(env, chatId, null, fullName);
-          } 
-          
-          // --- Admin: Broadcast Logic ---
-          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/broadcast")) {
-            const offset = parseInt(text.split("_")[1]) || 0;
-            await handleAdvancedBroadcast(env, payload.message, offset);
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `⏳ ብሮድካስት ተጀምሯል...` });
-          }
-        
-          // --- Admin: Reply Logic (ተሻሽሏል - Block መደረጉን ያሳውቃል) ---
-          else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/reply_")) {
-            const parts = text.split(" ");
-            const targetId = parts[0].split("_")[1];
-            const replyText = parts.slice(1).join(" ");
-            
-            try {
-              const response = await callTelegram(env, "sendMessage", { 
-                chat_id: targetId, 
-                text: `📩 *Message from Admin:*\n\n${replyText}`, 
-                parse_mode: "Markdown" 
-              });
-              const result = await response.json();
-
-              if (result.ok) {
-                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ መልእክቱ በተሳካ ሁኔታ ለተማሪው ደርሷል።" });
-              } else {
-                let errorDesc = result.description || "";
-                let msg = "❌ መልእክቱ ሊደርስ አልቻለም።";
-                if (errorDesc.includes("blocked")) {
-                  msg = "🚫 ተማሪው ቦቱን Block አድርጎታል። መልእክት መላክ አይቻልም።";
-                } else if (errorDesc.includes("not found")) {
-                  msg = "🔍 ተማሪው አልተገኘም (Chat Not Found)።";
-                }
-                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: msg });
-              }
-            } catch (e) {
-              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "⚠️ የቴክኒክ ስህተት አጋጥሟል።" });
-            }
-          }
-          
-          // --- User Feedback Logic (ተሻሽሏል - ፎቶ እና ፋይል ይቀበላል) ---
-          else if (chatId.toString() !== env.ADMIN_ID) {
-            // መጀመሪያ ላኪው ማን እንደሆነ መረጃ ይልክልሃል
-            const infoMsg = `💬 *New Feedback*\n\nFrom: ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \``;
-            await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: infoMsg, parse_mode: "Markdown" });
-
-            // የተላከውን መልእክት (ፎቶ፣ ፋይል፣ ቴክስት) እንዳለ ለአንተ Forward/Copy ያደርጋል
-            await callTelegram(env, "copyMessage", {
-              chat_id: env.ADMIN_ID,
-              from_chat_id: chatId,
-              message_id: payload.message.message_id
-            });
-
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
-          }
-        }
-
-        // --- Callback Query (Buttons) Logic ---
-        if (payload.callback_query) {
-          const chatId = payload.callback_query.message.chat.id;
-          const messageId = payload.callback_query.message.message_id;
-          const data = payload.callback_query.data;
-          const fullName = payload.callback_query.from.first_name || "Student";
-
-          if (data.startsWith("grade_")) {
-            await sendSubjects(env, chatId, messageId, data);
-          } else if (data.startsWith("units_")) {
-            await sendUnits(env, chatId, messageId, data);
-          } else if (data.startsWith("prequiz_")) {
-            await sendPreQuizMenu(env, chatId, messageId, data);
-          } else if (data.startsWith("start_")) {
-            await putD1Value(env, `temp_score_${chatId}`, "0");
-            await sendQuestion(env, chatId, messageId, data, 0); 
-          } else if (data.startsWith("next_")) {
-            const parts = data.split("_");
-            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
-            const nextIdx = parseInt(parts[5]);
-            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
-          } else if (data.startsWith("answer_")) {
-            await handleAnswer(env, chatId, messageId, data, fullName);
-          } else if (data.startsWith("seen_")) {
-            await handleSeenQuestion(env, chatId, messageId, data);
-          } else if (data === "contact") {
-            await sendContact(env, chatId, messageId);
-          } else if (data === "help") {
-            await sendHelp(env, chatId, messageId);
-          } else if (data === "leaderboard") {
-            await sendLeaderboard(env, chatId, messageId);
-          } else if (data === "back_to_main") {
-            await sendStartMenu(env, chatId, messageId, fullName);
-          } else if (data.startsWith("back_to_grade_")) {
-            await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
-          } else if (data.startsWith("back_to_units_")) {
-             const parts = data.split("_");
-             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
-             await sendUnits(env, chatId, messageId, reconstructedData);
-          }
-        }
-      } catch (e) {
-        return new Response("OK", { status: 200 });
-      }
-      return new Response("OK", { status: 200 });
-    }
-    return new Response("Bot is active!");
-  },
-};
-   */
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST") {
@@ -531,7 +301,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
 
-/*async function handleAdvancedBroadcast(env, originalMsg, offset) {
+async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
   if (!results || results.length === 0) {
@@ -540,7 +310,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   }
   let success = 0, fail = 0;
   let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
-/*  for (const user of results) {
+  for (const user of results) {
     try {
       let response;
       if (originalMsg.photo) {
@@ -553,41 +323,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
     if ((success + fail) % 30 === 0) await new Promise(r => setTimeout(r, 1000));
   }
   await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
-}*/
-// --- Updated Broadcast Function ---
-async function handleAdvancedBroadcast(env, originalMsg, offset) {
-  const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
-  const results = await res.json();
-  if (!results || results.length === 0) {
-    await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ ብሮድካስቱ ተጠናቋል።" });
-    return;
-  }
-
-  const feedbackKeyboard = {
-    inline_keyboard: [[
-      { text: "✅ ተረድቻለሁ", callback_data: "feed_understood" },
-      { text: "❓ ጥያቄ አለኝ", callback_data: "feed_question" }
-    ]]
-  };
-
-  let success = 0, fail = 0;
-  let cleanText = (originalMsg.text || originalMsg.caption || "").replace(/\/broadcast(_\d+)?\s*/, "");
-  
-  for (const user of results) {
-    try {
-      let response;
-      const params = { chat_id: user.id, reply_markup: feedbackKeyboard, parse_mode: "Markdown" };
-      if (originalMsg.photo) {
-        response = await callTelegram(env, "sendPhoto", { ...params, photo: originalMsg.photo[originalMsg.photo.length - 1].file_id, caption: cleanText });
-      } else {
-        response = await callTelegram(env, "sendMessage", { ...params, text: cleanText });
-      }
-      if ((await response.json()).ok) success++; else fail++;
-    } catch (e) { fail++; }
-  }
-  await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `📊 *Report*\n✅ Sent: ${success}\n❌ Failed: ${fail}\n\nNext: \`/broadcast_${offset + 500}\``, parse_mode: "Markdown" });
 }
-
 
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
