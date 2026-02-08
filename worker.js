@@ -51,21 +51,21 @@ async function callTelegram(env, method, body) {
     body: JSON.stringify(body) 
   });
 }
+
 export default {
   async fetch(request, env, ctx) {
     if (request.method === "POST") {
       try {
         const payload = await request.json();
-
-        // የቆዩ መልእክቶችን ችላ ለማለት
         const msgCheck = payload.message || payload.callback_query?.message;
+        
+        // ጊዜ ያለፈባቸውን መልእክቶች ችላ በል
         if (msgCheck && msgCheck.date) {
           const currentTime = Math.floor(Date.now() / 1000);
-          if (currentTime - msgCheck.date > 300) { 
-            return new Response("OK", { status: 200 });
-          }
+          if (currentTime - msgCheck.date > 300) return new Response("OK");
         }
 
+        // --- ሀ. መልእክት ሲመጣ (Message Handling) ---
         if (payload.message) {
           const chatId = payload.message.chat.id;
           const text = payload.message.text || payload.message.caption || "";
@@ -74,136 +74,111 @@ export default {
 
           await saveUser(env, chatId.toString());
 
-          // --- /start ---
+          // 1. /start ሲላክ
           if (text.startsWith("/start")) {
-            await sendStartMenu(env, chatId, null, fullName);
+            const newVersion = Math.floor(Date.now() / 1000).toString();
+            await putD1Value(env, `user_ver_${chatId}`, newVersion);
+            await sendStartMenu(env, chatId, null, fullName, newVersion);
           } 
-          
-          // --- Admin: Broadcast ---
+
+          // 2. Admin: Broadcast (ከነ ሪፖርቱ)
           else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/broadcast")) {
             const offset = parseInt(text.split("_")[1]) || 0;
             await handleAdvancedBroadcast(env, payload.message, offset);
           }
-        
-          // --- Admin: Reply (ፎቶና ፋይልም ይልካል) ---
+
+          // 3. Admin: Reply (ፎቶ፣ ቪዲዮ፣ ድምፅ እና Block መደረጉን መለያ)
           else if (chatId.toString() === env.ADMIN_ID && text.startsWith("/reply_")) {
             const parts = text.split(" ");
             const targetId = parts[0].split("_")[1];
-            const replyText = parts.slice(1).join(" ");
+            const replyCaption = parts.slice(1).join(" ");
             
-            try {
-              let response;
-              // 1. Reply የተደረገበት ፋይል ካለ copyMessage ይጠቀማል
-              if (payload.message.reply_to_message) {
-                response = await callTelegram(env, "copyMessage", {
-                  chat_id: targetId,
-                  from_chat_id: env.ADMIN_ID,
-                  message_id: payload.message.reply_to_message.message_id
-                });
-                // ጽሑፍም አብሮ ካለ ለብቻው ይላካል
-                if (replyText.trim().length > 0) {
-                  await callTelegram(env, "sendMessage", { chat_id: targetId, text: replyText });
-                }
-              } 
-              // 2. ጽሑፍ ብቻ ከሆነ
-              else {
-                response = await callTelegram(env, "sendMessage", { 
-                  chat_id: targetId, 
-                  text: `📩 *Message from Admin:*\n\n${replyText}`, 
-                  parse_mode: "Markdown" 
-                });
-              }
+            let response;
+            // መልእክቱ Reply ከሆነ (ፎቶ፣ ቪዲዮ፣ ድምፅ... ማንኛውንም ፋይል ይልካል)
+            if (payload.message.reply_to_message) {
+              response = await callTelegram(env, "copyMessage", {
+                chat_id: targetId,
+                from_chat_id: env.ADMIN_ID,
+                message_id: payload.message.reply_to_message.message_id,
+                caption: replyCaption // ፋይሉ ላይ ጽሁፍ መጨመር ከፈለግክ
+              });
+            } else {
+              // ጽሁፍ ብቻ ከሆነ
+              response = await callTelegram(env, "sendMessage", { 
+                chat_id: targetId, 
+                text: `📩 *ከአስተዳዳሪው መልእክት:*\n\n${replyCaption}`, 
+                parse_mode: "Markdown"
+              });
+            }
 
-              const result = await response.json();
-              if (result.ok) {
-                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ መልእክቱ በተሳካ ሁኔታ ተልኳል።" });
+            const resData = await response.json();
+
+            // ውጤቱን ለአድሚኑ ማሳወቅ
+            if (resData.ok) {
+              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "✅ መልእክቱ በተሳካ ሁኔታ ደርሷል።" });
+            } else {
+              let errorMsg = "❌ መልእክቱ አልተላከም።";
+              if (resData.description.includes("bot was blocked by the user")) {
+                errorMsg = "🚫 ተማሪው ቦቱን **Block** አድርጎታል። መልእክት ማድረስ አይቻልም።";
+              } else if (resData.description.includes("chat not found")) {
+                errorMsg = "⚠️ ተማሪው በቴሌግራም ዳታቤዝ ውስጥ አልተገኘም (Bot ን ገና አልጀመረም)።";
               } else {
-                let msg = result.description.includes("blocked") ? "🚫 ተማሪው ቦቱን Block አድርጎታል።" : "❌ አልተላከም፦ " + result.description;
-                await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: msg });
+                errorMsg = `❌ ስህተት ተከስቷል: ${resData.description}`;
               }
-            } catch (e) {
-              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: "⚠️ ስህተት ተፈጥሯል።" });
+              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: errorMsg, parse_mode: "Markdown" });
             }
           }
-          
-          // --- User: Feedback (ሁሉንም አይነት ፋይል ይቀበላል) ---
+
+          // 4. User: ተማሪ ጥያቄ ሲልክ
           else if (chatId.toString() !== env.ADMIN_ID) {
-            await callTelegram(env, "sendMessage", { 
-              chat_id: env.ADMIN_ID, 
-              text: `💬 *New Feedback from:* ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \``, 
-              parse_mode: "Markdown" 
-            });
-
-            await callTelegram(env, "copyMessage", {
-              chat_id: env.ADMIN_ID,
-              from_chat_id: chatId,
-              message_id: payload.message.message_id
-            });
-
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
+            const isAsking = await getD1Value(env, `asking_${chatId}`);
+            if (isAsking === "true") {
+              await callTelegram(env, "sendMessage", { chat_id: env.ADMIN_ID, text: `❓ *ጥያቄ ከ:* ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \``, parse_mode: "Markdown" });
+              await callTelegram(env, "copyMessage", { chat_id: env.ADMIN_ID, from_chat_id: chatId, message_id: payload.message.message_id });
+              await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ደርሷል። አስተዳዳሪው እስኪመልስልዎ ድረስ ይጠብቁ።" });
+              await putD1Value(env, `asking_${chatId}`, "false");
+            }
           }
         }
 
-        // --- Callback Queries (Buttons) ---
+        // --- ለ. አዝራሮች ሲጫኑ (Callback Query Handling) ---
         if (payload.callback_query) {
           const chatId = payload.callback_query.message.chat.id;
           const messageId = payload.callback_query.message.message_id;
           const data = payload.callback_query.data;
           const fullName = payload.callback_query.from.first_name || "Student";
 
-          // ብሮድካስት ፌድባክ መቀበያ
-          if (data.startsWith("feed_")) {
-            const reaction = data === "feed_understood" ? "✅ ተረድቻለሁ ብሏል።" : "❓ ጥያቄ አለኝ ብሏል።";
-            await callTelegram(env, "sendMessage", { 
-              chat_id: env.ADMIN_ID, 
-              text: `📢 *Broadcast Feedback*\n\nተማሪ፦ ${fullName}\nID: \`${chatId}\`\nምላሽ፦ ${reaction}`, 
-              parse_mode: "Markdown" 
-            });
-            await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id, text: "ምላሽዎ ደርሷል፣ አመሰግናለን!" });
-            return;
+          const latestVersion = await getD1Value(env, `user_ver_${chatId}`);
+          const dataParts = data.split("_");
+          const buttonVersion = dataParts[dataParts.length - 1];
+
+          // የቆየ አዝራርን ማጥፊያ
+          if (!isNaN(buttonVersion) && latestVersion && buttonVersion !== latestVersion) {
+            await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id, text: "⚠️ የቆየ ሜኑ ነው። አዲሱን ይጠቀሙ።", show_alert: true });
+            await callTelegram(env, "editMessageReplyMarkup", { chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+            return new Response("OK");
           }
 
-          if (data.startsWith("grade_")) {
-            await sendSubjects(env, chatId, messageId, data);
-          } else if (data.startsWith("units_")) {
-            await sendUnits(env, chatId, messageId, data);
-          } else if (data.startsWith("prequiz_")) {
-            await sendPreQuizMenu(env, chatId, messageId, data);
-          } else if (data.startsWith("start_")) {
+          // ዩኒት እና ኩዊዝ አዝራሮች
+          if (data.startsWith("grade_")) await sendSubjects(env, chatId, messageId, data);
+          else if (data.startsWith("units_")) await sendUnits(env, chatId, messageId, data);
+          else if (data.startsWith("prequiz_")) await sendPreQuizMenu(env, chatId, messageId, data);
+          else if (data.startsWith("start_")) {
             await putD1Value(env, `temp_score_${chatId}`, "0");
             await sendQuestion(env, chatId, messageId, data, 0); 
-          } else if (data.startsWith("next_")) {
-            const parts = data.split("_");
-            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
-            const nextIdx = parseInt(parts[5]);
-            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
-          } else if (data.startsWith("answer_")) {
-            await handleAnswer(env, chatId, messageId, data, fullName);
-          } else if (data.startsWith("seen_")) {
-            await handleSeenQuestion(env, chatId, messageId, data);
-          } else if (data === "contact") {
-            await sendContact(env, chatId, messageId);
-          } else if (data === "help") {
-            await sendHelp(env, chatId, messageId);
-          } else if (data === "leaderboard") {
-            await sendLeaderboard(env, chatId, messageId);
-          } else if (data === "back_to_main") {
-            await sendStartMenu(env, chatId, messageId, fullName);
-          } else if (data.startsWith("back_to_grade_")) {
-            await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
-          } else if (data.startsWith("back_to_units_")) {
-             const parts = data.split("_");
-             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
-             await sendUnits(env, chatId, messageId, reconstructedData);
           }
+          else if (data.startsWith("answer_")) await handleAnswer(env, chatId, messageId, data, fullName);
+          else if (data === "back_to_main") await sendStartMenu(env, chatId, messageId, fullName, latestVersion);
+          
+          await callTelegram(env, "answerCallbackQuery", { callback_query_id: payload.callback_query.id });
         }
       } catch (e) {
-        return new Response("OK", { status: 200 });
+        return new Response("OK");
       }
-      return new Response("OK", { status: 200 });
+      return new Response("OK");
     }
     return new Response("Bot is active!");
-  },
+  }
 };
 
 // --- GUI Functions ---
