@@ -127,67 +127,6 @@ export default {
             }
           }
           
-          /*/ --- User: Feedback (ሁሉንም አይነት ፋይል ይቀበላል) ---
-          else if (chatId.toString() !== env.ADMIN_ID) {
-            await callTelegram(env, "sendMessage", { 
-              chat_id: env.ADMIN_ID, 
-              text: `💬 *New Feedback from:* ${fullName}\nID: \`${chatId}\`\nReply: \`/reply_${chatId} \``, 
-              parse_mode: "Markdown" 
-            });
-
-            await callTelegram(env, "copyMessage", {
-              chat_id: env.ADMIN_ID,
-              from_chat_id: chatId,
-              message_id: payload.message.message_id
-            });
-
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
-          }
-        }
-
-          if (data.startsWith("grade_")) {
-            await sendSubjects(env, chatId, messageId, data);
-          } else if (data.startsWith("units_")) {
-            await sendUnits(env, chatId, messageId, data);
-          } else if (data.startsWith("prequiz_")) {
-            await sendPreQuizMenu(env, chatId, messageId, data);
-          } else if (data.startsWith("start_")) {
-            await putD1Value(env, `temp_score_${chatId}`, "0");
-            await sendQuestion(env, chatId, messageId, data, 0); 
-          } else if (data.startsWith("next_")) {
-            const parts = data.split("_");
-            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
-            const nextIdx = parseInt(parts[5]);
-            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
-          } else if (data.startsWith("answer_")) {
-            await handleAnswer(env, chatId, messageId, data, fullName);
-          } else if (data.startsWith("seen_")) {
-            await handleSeenQuestion(env, chatId, messageId, data);
-          } else if (data === "contact") {
-            await sendContact(env, chatId, messageId);
-          } else if (data === "help") {
-            await sendHelp(env, chatId, messageId);
-          } else if (data === "leaderboard") {
-            await sendLeaderboard(env, chatId, messageId);
-          } else if (data === "back_to_main") {
-            await sendStartMenu(env, chatId, messageId, fullName);
-          } else if (data.startsWith("back_to_grade_")) {
-            await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
-          } else if (data.startsWith("back_to_units_")) {
-             const parts = data.split("_");
-             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
-             await sendUnits(env, chatId, messageId, reconstructedData);
-          }
-        
-      } catch (e) {
-        return new Response("OK", { status: 200 });
-      }
-      return new Response("OK", { status: 200 });
-    }
-    return new Response("Bot is active!");
-  },
-};
-*/
           // --- User: Feedback (ሁሉንም አይነት ፋይል ይቀበላል) ---
           else if (chatId.toString() !== env.ADMIN_ID) {
             await callTelegram(env, "sendMessage", { 
