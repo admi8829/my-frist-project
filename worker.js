@@ -1,4 +1,4 @@
-/*// --- Supabase Helper Function ---
+// --- Supabase Helper Function ---
 async function callSupabase(env, table, method, query = "", body = null) {
   const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
   const options = {
@@ -164,7 +164,7 @@ if (payload.callback_query) {
   const data = payload.callback_query.data;
   const fullName = payload.callback_query.from.first_name || "Student";
 
-  /*ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
+/*ተማሪው "✅ ተረድቻለሁ" የሚለውን ሲጫን (ለብሮድካስትም ለግልም)
   if (data === "feed_understood") {
     // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ
     await callTelegram(env, "sendMessage", { 
@@ -172,7 +172,7 @@ if (payload.callback_query) {
       text: `✅ ተማሪ ${fullName} (ID: ${chatId}) መልእክቱ እንደደረሰውና እንደተረዳው አረጋግጧል።` 
     });
 
-    /* 2. ለተማሪው መልእክቱን ወደ "እናመሰግናለን" መቀየር
+     2. ለተማሪው መልእክቱን ወደ "እናመሰግናለን" መቀየር
     // መልእክቱ ሚዲያ (ፎቶ/ቪዲዮ) ከሆነ Caption ነው የሚቀየረው
     const msg = payload.callback_query.message;
     const isMedia = msg.photo || msg.video || msg.voice || msg.audio || msg.document;
@@ -201,7 +201,7 @@ if (payload.callback_query) {
       text: "ምላሽዎ ተመዝግቧል!" 
     });
     return;
-  }
+  }*/
     // ተማሪው "✅ ተረድቻለሁ" ሲል (ለብሮድካስትም ለግልም)
 if (data === "feed_understood") {
   // 1. ለአንተ (ለአድሚን) ሪፖርት መላክ (አንድ ጊዜ ብቻ)
@@ -272,8 +272,9 @@ if (data === "feed_understood") {
     }
     return new Response("Bot is active!");
   },
-};*/
-// --- Supabase Helper Function ---
+};
+
+/*--- Supabase Helper Function ---
 async function callSupabase(env, table, method, query = "", body = null) {
   const url = `${env.SUPABASE_URL}/rest/v1/${table}${query}`;
   const options = {
@@ -482,7 +483,7 @@ export default {
     }
     return new Response("Bot is active!");
   },
-};
+};*/
 
 // --- GUI Functions & Logic (ልክ እንደነበረው ይቀጥላል) ---
 // (ከዚህ በታች ያሉትን sendStartMenu, handleAdvancedBroadcast ወዘተ. ኮድህ ውስጥ እንዳሉ ጨምራቸው)
