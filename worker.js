@@ -204,7 +204,7 @@ export default {
 
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
-  const welcomeText = `👋* Hello student!*\n\n
+  const welcomeText = ` Hello student!
 Are you ready to test your knowledge? Select your grade level below and start practicing right now! 🚀"`;
   const keyboard = [
     [{ text: "📚 Grade 9", callback_data: "grade_9" }, { text: "📚 Grade 10", callback_data: "grade_10" }],
