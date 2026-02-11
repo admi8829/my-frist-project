@@ -411,7 +411,7 @@ async function sendSubjects(env, chatId, messageId, grade) {
   const gradeTitle = grade.replace("_", " ").toUpperCase();
 
   // የአማርኛው መመሪያ እዚህ ጋር ተካቷል
-  const instructionText = `📂 **${gradeTitle}**\n\nእባክዎ መፈተን የሚፈልጉትን **የትምህርት አይነት (Subject)** ይምረጡ፡`;
+  const instructionText = `📂 **${gradeTitle}**\n\n"Please select the subject you would like to be tested on."`;
 
   await callTelegram(env, "editMessageText", { 
     chat_id: chatId, 
