@@ -204,7 +204,7 @@ export default {
 
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
-  const welcomeText = ` Hello student!
+  const welcomeText = `*👋 Hello student!*\n\n
 Are you ready to test your knowledge? Select your grade level below and start practicing right now! 🚀"`;
   const keyboard = [
     [{ text: "📚 Grade 9", callback_data: "grade_9" }, { text: "📚 Grade 10", callback_data: "grade_10" }],
@@ -411,7 +411,7 @@ async function sendSubjects(env, chatId, messageId, grade) {
   const gradeTitle = grade.replace("_", " ").toUpperCase();
 
   // የአማርኛው መመሪያ እዚህ ጋር ተካቷል
-  const instructionText = `📂 **${gradeTitle}**\n\n"Please select the subject you would like to be tested on."`;
+  const instructionText = `📂 **${gradeTitle}**\n\nPlease select the subject you would like to be tested on.`;
 
   await callTelegram(env, "editMessageText", { 
     chat_id: chatId, 
@@ -482,7 +482,7 @@ async function sendUnits(env, chatId, messageId, data) {
   await callTelegram(env, "editMessageText", { 
     chat_id: chatId, 
     message_id: messageId, 
-    text: `📂 *${title} > ${subjectName}*\n\nእባክዎ ለመፈተን የሚፈልጉትን ዩኒት ይምረጡ (Select Unit):`, 
+    text: `📂 *${title} > ${subjectName}*\n\nPlease select the unit you would like to test.:`, 
     parse_mode: "Markdown", 
     reply_markup: { inline_keyboard: keyboard } 
   });
