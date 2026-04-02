@@ -415,6 +415,7 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
   // 2. የሚላከውን ጽሑፍ ማዘጋጀት
   const rawText = originalMsg.text || originalMsg.caption || "";
   const cleanText = rawText.replace(/\/broadcast(_\d+)?\s*/, "").trim();
+  
 
   // 3. ለእያንዳንዱ ተጠቃሚ መላክ (Loop)
   for (const user of results) {
