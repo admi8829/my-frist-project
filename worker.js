@@ -313,7 +313,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
 
   // 2. የሚላከውን ጽሑፍ ማዘጋጀት (Syntax Error እንዳይመጣ ተስተካክሏል)
   const rawText = originalMsg.text || originalMsg.caption || "";
-  const cleanText = rawText.replace(/\/broadcast(_\d+)?\s*/, "").trim();
+  const cleanText = rawText.replace(/\/broadcast(_\d+)?\s*, "").trim();
 
   /*3. ለእያንዳንዱ ተጠቃሚ መላክ
   for (const user of results) {
