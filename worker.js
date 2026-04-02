@@ -293,7 +293,7 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   let keyboard = [[{ text: "⬅️ Back to explain ", callback_data: `answer_quiz_${path}_${currentIndex}_-1` }], [{ text: "Next ➡️", callback_data: `next_${path}_${currentIndex + 1}` }]];
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
-async function handleAdvancedBroadcast(env, originalMsg, offset) {
+/*async function handleAdvancedBroadcast(env, originalMsg, offset) {
   // 1. ተጠቃሚዎችን ከ Supabase ማምጣት
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
   const results = await res.json();
@@ -315,7 +315,7 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
   const rawText = originalMsg.text || originalMsg.caption || "";
   const cleanText = rawText.replace(/\/broadcast(_\d+)?\s*/, "").trim();
 
-  // 3. ለእያንዳንዱ ተጠቃሚ መላክ
+  /*3. ለእያንዳንዱ ተጠቃሚ መላክ
   for (const user of results) {
     try {
       let response;
@@ -389,7 +389,104 @@ async function handleAdvancedBroadcast(env, originalMsg, offset) {
     text: reportMsg, 
     parse_mode: "Markdown" 
   });
+}*/
+async function handleAdvancedBroadcast(env, originalMsg, offset) {
+  // በአንድ ጊዜ የሚላክላቸው ተጠቃሚዎች ብዛት (Timeout እንዳይፈጠር 50 ተመራጭ ነው)
+  const BATCH_SIZE = 50; 
+  
+  // 1. ተጠቃሚዎችን ከ Supabase ማምጣት
+  const res = await callSupabase(env, "users", "GET", `?select=id&limit=${BATCH_SIZE}&offset=${offset}`);
+  const results = await res.json();
+
+  // ተጠቃሚ ካለቀ ብሮድካስቱ መቆሙን ይነግረናል
+  if (!results || results.length === 0) {
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: "✅ **ብሮድካስቱ ተጠናቋል።** በዝርዝሩ ውስጥ የቀረ ተጨማሪ ተጠቃሚ የለም።",
+      parse_mode: "Markdown"
+    });
+    return;
+  }
+
+  let success = 0;
+  let blocked = 0;
+  let failed = 0;
+
+  // 2. የሚላከውን ጽሑፍ ማዘጋጀት
+  const rawText = originalMsg.text || originalMsg.caption || "";
+  const cleanText = rawText.replace(/\/broadcast(_\d+)?\s*/, "").trim();
+
+  // 3. ለእያንዳንዱ ተጠቃሚ መላክ (Loop)
+  for (const user of results) {
+    try {
+      let response;
+      let body = { 
+        chat_id: user.id, 
+        caption: cleanText, 
+        parse_mode: "Markdown" 
+      };
+
+      // የፋይል አይነቱን ለይቶ መላክ
+      if (originalMsg.video) {
+        body.video = originalMsg.video.file_id;
+        response = await callTelegram(env, "sendVideo", body);
+      } 
+      else if (originalMsg.document) {
+        body.document = originalMsg.document.file_id;
+        response = await callTelegram(env, "sendDocument", body);
+      } 
+      else if (originalMsg.photo) {
+        body.photo = originalMsg.photo[originalMsg.photo.length - 1].file_id;
+        response = await callTelegram(env, "sendPhoto", body);
+      } 
+      else if (originalMsg.audio) {
+        body.audio = originalMsg.audio.file_id;
+        response = await callTelegram(env, "sendAudio", body);
+      }
+      else {
+        response = await callTelegram(env, "sendMessage", { 
+          chat_id: user.id, 
+          text: cleanText, 
+          parse_mode: "Markdown" 
+        });
+      }
+
+      const outcome = await response.json();
+      if (outcome.ok) {
+        success++;
+      } else {
+        // ቦቱን የዘጉ ተጠቃሚዎችን መለየት
+        if (outcome.description && outcome.description.includes("blocked")) {
+          blocked++;
+        }
+        failed++;
+      }
+    } catch (e) { 
+      failed++; 
+    }
+
+    // ቴሌግራም ፍጥነታችንን ገድቦ (Rate Limit) እንዳያግደን ትንሽ እረፍት (Anti-Spam)
+    await new Promise(r => setTimeout(r, 60)); 
+  }
+
+  // 4. ዝርዝር ሪፖርት ለአስተዳዳሪው መላክ
+  const nextOffset = offset + results.length;
+  const reportMsg = `📊 **የብሮድካስት ሪፖርት (Batch: ${offset} - ${nextOffset})**\n\n` +
+                    `✅ በተሳካ ሁኔታ የተላከ፡ \`${success}\`\n` +
+                    `🚫 ቦቱን የዘጉ (Blocked)፡ \`${blocked}\`\n` +
+                    `❌ ያልተላከላቸው (ሌላ ስህተት)፡ \`${failed - blocked}\`\n` +
+                    `📉 በዚህ ዙር የተሞከረ፡ \`${success + failed}\`\n\n` +
+                    `⚠️ **ማሳሰቢያ፦** ተጠቃሚዎችህ ከ ${BATCH_SIZE} በላይ ስለሆኑ ቀጣዩን ለመላክ ከታች ያለውን ሊንክ ይጫኑ።\n\n` +
+                    `👇 **ቀጣዩን ለመላክ ይህን ይጫኑ፦**\n` +
+                    `\`/broadcast_${nextOffset} ${cleanText}\``;
+
+  await callTelegram(env, "sendMessage", { 
+    chat_id: env.ADMIN_ID, 
+    text: reportMsg, 
+    parse_mode: "Markdown" 
+  });
 }
+
 async function sendSubjects(env, chatId, messageId, grade) {
   const subjectMap = {
     grade_9: [["Physics", "History"], ["Biology", "Economics"], ["Chemistry", "Geography"], ["English",]],
