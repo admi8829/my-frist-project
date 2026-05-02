@@ -177,6 +177,8 @@ export default {
             await sendHelp(env, chatId, messageId);
           } else if (data === "leaderboard") {
             await sendLeaderboard(env, chatId, messageId);
+          } else if (data === "my_score") {
+            await sendMyScore(env, chatId, messageId, fullName);
           } else if (data === "back_to_main") {
             await sendStartMenu(env, chatId, messageId, fullName);
           } else if (data.startsWith("back_to_grade_")) {
