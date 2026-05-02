@@ -209,9 +209,10 @@ Are you ready to test your knowledge? Select your grade level below and start pr
   const keyboard = [
     [{ text: "📚 Grade 9", callback_data: "grade_9" }, { text: "📚 Grade 10", callback_data: "grade_10" }],
     [{ text: "📚 Grade 11", callback_data: "grade_11" }, { text: "📚 Grade 12", callback_data: "grade_12" }],
-    [{ text: "🏆leaderboard ", callback_data: "leaderboard" }],
+    [{ text: "🏆 Leaderboard", callback_data: "leaderboard" }, { text: "👤 My Score", callback_data: "my_score" }], // My Score እዚህ ተጨመረ
     [{ text: " 🙏 Ask Smart-X ", callback_data: "contact" }, { text: "❓ Help ", callback_data: "help" }]
   ];
+  
   const method = editMessageId ? "editMessageText" : "sendMessage";
   const body = { chat_id: chatId, text: welcomeText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } };
   if (editMessageId) body.message_id = editMessageId;
@@ -293,6 +294,57 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
   let keyboard = [[{ text: "⬅️ Back to explain ", callback_data: `answer_quiz_${path}_${currentIndex}_-1` }], [{ text: "Next ➡️", callback_data: `next_${path}_${currentIndex + 1}` }]];
   await callTelegram(env, "editMessageText", { chat_id: chatId, message_id: messageId, text: formattedText, parse_mode: "Markdown", reply_markup: { inline_keyboard: keyboard } });
 }
+
+async function sendMyScore(env, chatId, messageId, fullName) {
+  try {
+    // 1. የተማሪውን ውጤት ማምጣት
+    const userRes = await callSupabase(env, "scores", "GET", `?user_id=eq.${chatId}&select=total_score`);
+    const userData = await userRes.json();
+    
+    if (!userData || userData.length === 0 || userData[0].total_score === 0) {
+      await callTelegram(env, "editMessageText", {
+        chat_id: chatId,
+        message_id: messageId,
+        text: `👋 *${fullName}*\n\nገና ምንም ጥያቄ አልሰራህም፤ ፈተናዎችን ስትሰራ ውጤትህ እዚህ ይታያል! 💪`,
+        parse_mode: "Markdown",
+        reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "back_to_main" }]] }
+      });
+      return;
+    }
+
+    const myScore = userData[0].total_score;
+
+    // 2. ከእሱ በላይ የተሻለ ውጤት ያላቸውን ተማሪዎች ብዛት መቆጠር (ደረጃውን ለማወቅ)
+    const rankRes = await callSupabase(env, "scores", "GET", `?total_score=gt.${myScore}&select=count`, "HEAD");
+    // ማሳሰቢያ፡ Supabase 'count' በ header ውስጥ ነው የሚመልሰው ወይም 'select=count' መጠቀም ይቻላል
+    // በቀላሉ ለማድረግ ሁሉንም አምጥቶ መቁጠር ወይም የተለየ ኳየሪ መጠቀም ይቻላል። 
+    // እዚህ ጋር ቀለል ባለ መንገድ ሁሉንም ውጤቶች አምጥተን ደረጃውን እንፈልግ፡
+    
+    const allRes = await callSupabase(env, "scores", "GET", "?select=user_id&order=total_score.desc");
+    const allData = await allRes.json();
+    
+    const rank = allData.findIndex(u => u.user_id === chatId.toString()) + 1;
+
+    const scoreText = `👤 **የእርስዎ መረጃ (My Profile)**\n` +
+                      `__________________________________\n\n` +
+                      `📝 ስም፦ *${fullName}*\n` +
+                      `🎯 አጠቃላይ ውጤት፦ \`${myScore}\` ነጥብ\n` +
+                      `🏆 ደረጃ፦ \`#${rank}\` ከ ${allData.length} ተማሪዎች\n\n` +
+                      `__________________________________\n` +
+                      `ተጨማሪ ጥያቄዎችን በመስራት ደረጃዎን ያሻሽሉ! 🚀`;
+
+    await callTelegram(env, "editMessageText", {
+      chat_id: chatId,
+      message_id: messageId,
+      text: scoreText,
+      parse_mode: "Markdown",
+      reply_markup: { inline_keyboard: [[{ text: "🔙 Back to Main Menu", callback_data: "back_to_main" }]] }
+    });
+  } catch (e) {
+    await callTelegram(env, "sendMessage", { chat_id: chatId, text: "⚠️ መረጃውን ማምጣት አልተቻለም።" });
+  }
+}
+
 /*async function handleAdvancedBroadcast(env, originalMsg, offset) {
   // 1. ተጠቃሚዎችን ከ Supabase ማምጣት
   const res = await callSupabase(env, "users", "GET", `?select=id&limit=500&offset=${offset}`);
