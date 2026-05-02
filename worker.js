@@ -299,11 +299,19 @@ async function handleSeenQuestion(env, chatId, messageId, data) {
 
 async function sendMyScore(env, chatId, messageId, fullName) {
   try {
-    // 1. የተማሪውን ውጤት ማምጣት
-    const userRes = await callSupabase(env, "scores", "GET", `?user_id=eq.${chatId}&select=total_score`);
-    const userData = await userRes.json();
+    // 1. ሁሉንም ውጤቶች በቅደም ተከተል ማምጣት
+    const res = await callSupabase(env, "scores", "GET", "?select=user_id,total_score&order=total_score.desc");
+    const allData = await res.json();
     
-    if (!userData || userData.length === 0 || userData[0].total_score === 0) {
+    if (!allData || allData.length === 0) {
+      throw new Error("No data found");
+    }
+
+    // 2. የተማሪውን መረጃ በዝርዝሩ ውስጥ መፈለግ
+    const userIndex = allData.findIndex(u => u.user_id === chatId.toString());
+    
+    if (userIndex === -1) {
+      // ተማሪው ገና ፈተና ካልሰራ በዝርዝሩ ውስጥ አይኖርም
       await callTelegram(env, "editMessageText", {
         chat_id: chatId,
         message_id: messageId,
@@ -314,18 +322,8 @@ async function sendMyScore(env, chatId, messageId, fullName) {
       return;
     }
 
-    const myScore = userData[0].total_score;
-
-    // 2. ከእሱ በላይ የተሻለ ውጤት ያላቸውን ተማሪዎች ብዛት መቆጠር (ደረጃውን ለማወቅ)
-    const rankRes = await callSupabase(env, "scores", "GET", `?total_score=gt.${myScore}&select=count`, "HEAD");
-    // ማሳሰቢያ፡ Supabase 'count' በ header ውስጥ ነው የሚመልሰው ወይም 'select=count' መጠቀም ይቻላል
-    // በቀላሉ ለማድረግ ሁሉንም አምጥቶ መቁጠር ወይም የተለየ ኳየሪ መጠቀም ይቻላል። 
-    // እዚህ ጋር ቀለል ባለ መንገድ ሁሉንም ውጤቶች አምጥተን ደረጃውን እንፈልግ፡
-    
-    const allRes = await callSupabase(env, "scores", "GET", "?select=user_id&order=total_score.desc");
-    const allData = await allRes.json();
-    
-    const rank = allData.findIndex(u => u.user_id === chatId.toString()) + 1;
+    const myScore = allData[userIndex].total_score;
+    const rank = userIndex + 1;
 
     const scoreText = `👤 **የእርስዎ መረጃ (My Profile)**\n` +
                       `__________________________________\n\n` +
@@ -343,9 +341,21 @@ async function sendMyScore(env, chatId, messageId, fullName) {
       reply_markup: { inline_keyboard: [[{ text: "🔙 Back to Main Menu", callback_data: "back_to_main" }]] }
     });
   } catch (e) {
-    await callTelegram(env, "sendMessage", { chat_id: chatId, text: "⚠️ መረጃውን ማምጣት አልተቻለም።" });
+    // ስህተቱ ምን እንደሆነ በትክክል ለማወቅ (ለዲበገን ብቻ)፦
+    await callTelegram(env, "sendMessage", { 
+      chat_id: env.ADMIN_ID, 
+      text: `Admin Alert: Score Error -> ${e.message}` 
+    });
+    
+    await callTelegram(env, "editMessageText", { 
+      chat_id: chatId, 
+      message_id: messageId,
+      text: "⚠️ መረጃውን ማምጣት አልተቻለም። እባክዎ ቆይተው ይሞክሩ።",
+      reply_markup: { inline_keyboard: [[{ text: "🔙 Back", callback_data: "back_to_main" }]] }
+    }); 
   }
-}
+    }
+      
 
 /*async function handleAdvancedBroadcast(env, originalMsg, offset) {
   // 1. ተጠቃሚዎችን ከ Supabase ማምጣት
