@@ -657,43 +657,74 @@ async function sendPreQuizMenu(env, chatId, messageId, data) {
 
 async function sendLeaderboard(env, chatId, messageId) {
   try {
-    const res = await callSupabase(env, "scores", "GET", "?select=full_name,total_score&total_score=gt.0&order=total_score.desc&limit=10");
+    // 1. ዳታውን ከSupabase ማምጣት (ውጤታቸው ከ 0 በላይ የሆኑትን ብቻ በቅደም ተከተል)
+    const query = "?select=full_name,total_score&total_score=gt.0&order=total_score.desc&limit=10";
+    const res = await callSupabase(env, "scores", "GET", query);
+    
+    if (!res.ok) throw new Error(`Supabase error: ${res.statusText}`);
+    
     const results = await res.json();
     
     let leaderText = "🏆 **የተማሪዎች የደረጃ ሰንጠረዥ (Top 10)** 🏆\n";
-    leaderText += "__________________________________\n\n";
+    leaderText += "━━━━━━━━━━━━━━━━━━━━\n\n";
 
     if (results && results.length > 0) {
       results.forEach((row, index) => {
         let medal = "";
-        // የመጀመሪያዎቹን ሦስት ደረጃዎች በሜዳሊያ መለየት
-        if (index === 0) medal = "🥇 ";
-        else if (index === 1) medal = "🥈 ";
-        else if (index === 2) medal = "🥉 ";
-        else medal = `${index + 1}. `;
+        // ደረጃዎችን በሜዳሊያ እና በቁጥር መለየት
+        if (index === 0) medal = "🥇";
+        else if (index === 1) medal = "🥈";
+        else if (index === 2) medal = "🥉";
+        else medal = `第 ${index + 1}`; // ወይም ዝም ብሎ ቁጥሩን መጠቀም ይቻላል
 
-        leaderText += `${medal}**${row.full_name}**\n      └ 🎯 ውጤት: \`${row.total_score}\` ነጥብ\n\n`;
+        // ስም እና ውጤት አቀራረብ
+        leaderText += `${medal} **${row.full_name}**\n`;
+        leaderText += `╰── 🎯 ውጤት፦ \`${row.total_score}\` ነጥብ\n\n`;
       });
       
-      leaderText += "__________________________________\n";
-      leaderText += "💪 በርቱ! እናንተም ጠንክራችሁ በመስራት እዚህ ዝርዝር ውስጥ መግባት ትችላላችሁ።";
+      leaderText += "━━━━━━━━━━━━━━━━━━━━\n";
+      leaderText += "🔥 *ጠንክራችሁ በመስራት ዝርዝሩ ውስጥ ተካተቱ!*";
     } else {
-      leaderText += "በአሁኑ ሰዓት ምንም የተመዘገበ ውጤት የለም። የመጀመሪያው ተማሪ ይሁኑ!";
+      leaderText += "ℹ️ በአሁኑ ሰዓት ምንም የተመዘገበ ውጤት የለም።\n\nቀዳሚ በመሆን ፈተናዎችን ይስሩና ስምዎን እዚህ ያስመዝግቡ! 🚀";
     }
 
+    // 2. መልእክቱን በTelegram ማዘመን
     await callTelegram(env, "editMessageText", { 
       chat_id: chatId, 
       message_id: messageId, 
       text: leaderText, 
       parse_mode: "Markdown", 
       reply_markup: { 
-        inline_keyboard: [[{ text: "🔙 back to main ", callback_data: "back_to_main" }]] 
+        inline_keyboard: [
+          [{ text: "🔄 አድስ (Refresh)", callback_data: "leaderboard" }],
+          [{ text: "🏠 ወደ ዋናው ማውጫ", callback_data: "back_to_main" }]
+        ] 
       } 
     });
-  } catch (e) { 
-    await callTelegram(env, "sendMessage", { chat_id: chatId, text: "⚠️ የደረጃ ሰንጠረዡን መጫን አልተቻለም። እባክዎ ቆይተው ይሞክሩ።" }); 
+
+  } catch (e) {
+    console.error("Leaderboard Error:", e);
+    
+    // ለአስተዳዳሪው ስህተቱን ማሳወቅ (አማራጭ)
+    if (env.ADMIN_ID) {
+      await callTelegram(env, "sendMessage", { 
+        chat_id: env.ADMIN_ID, 
+        text: `⚠️ Leaderboard Error: ${e.message}` 
+      });
+    }
+
+    // ለተጠቃሚው የሚታይ መልእክት
+    await callTelegram(env, "editMessageText", { 
+      chat_id: chatId, 
+      message_id: messageId,
+      text: "⚠️ ይቅርታ፣ የደረጃ ሰንጠረዡን ማምጣት አልተቻለም። እባክዎ ጥቂት ቆይተው እንደገና ይሞክሩ።",
+      reply_markup: { 
+        inline_keyboard: [[{ text: "🔙 ተመለስ", callback_data: "back_to_main" }]] 
+      }
+    }); 
   }
 }
+
 async function sendContact(env, chatId, messageId) {
   const contactText = `📩 **Contact & Support | እኛን ለማግኘት**\n\n` +
     `🤖 **ለአስተዳዳሪው መልእክት ለመላክ:**\n` +
