@@ -141,11 +141,12 @@ export default {
               message_id: payload.message.message_id
             });
 
-            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል።" });
+            await callTelegram(env, "sendMessage", { chat_id: chatId, text: "✅ መልእክትዎ ለአስተዳዳሪው ደርሷል ትንሽ ይጠብቁ።" });
           }
         } 
         
         // --- እዚህ ጋር ነው Callback Query (Buttons) የሚሰሩበት ክፍል መጀመር ያለበት ---
+                // --- Callback Query (Buttons) የሚሰሩበት ክፍል ---
         else if (payload.callback_query) {
           const callbackQuery = payload.callback_query;
           const chatId = callbackQuery.message.chat.id;
@@ -153,47 +154,58 @@ export default {
           const data = callbackQuery.data;
           const fullName = callbackQuery.from.first_name || "Student";
 
-          if (data.startsWith("grade_")) {
-            await sendSubjects(env, chatId, messageId, data);
-          } else if (data.startsWith("units_")) {
-            await sendUnits(env, chatId, messageId, data);
-          } else if (data.startsWith("prequiz_")) {
-            await sendPreQuizMenu(env, chatId, messageId, data);
-          } else if (data.startsWith("start_")) {
-            await putD1Value(env, `temp_score_${chatId}`, "0");
-            await sendQuestion(env, chatId, messageId, data, 0); 
-          } else if (data.startsWith("next_")) {
-            const parts = data.split("_");
-            const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
-            const nextIdx = parseInt(parts[5]);
-            await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
-          } else if (data.startsWith("answer_")) {
-            await handleAnswer(env, chatId, messageId, data, fullName);
-          } else if (data.startsWith("seen_")) {
-            await handleSeenQuestion(env, chatId, messageId, data);
-          } else if (data === "contact") {
-            await sendContact(env, chatId, messageId);
-          } else if (data === "help") {
-            await sendHelp(env, chatId, messageId);
-          } else if (data === "leaderboard") {
-            await sendLeaderboard(env, chatId, messageId);
-          } else if (data === "my_score") {
-            await sendMyScore(env, chatId, messageId, fullName);
-          } else if (data === "back_to_main") {
-            await sendStartMenu(env, chatId, messageId, fullName);
-          } else if (data.startsWith("back_to_grade_")) {
-            await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
-          } else if (data.startsWith("back_to_units_")) {
-             const parts = data.split("_");
-             const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
-             await sendUnits(env, chatId, messageId, reconstructedData);
-          }
-          
-          // Telegram 'loading' icon እንዲቆም
+          // 1. መጀመሪያ Loading icon እንዲቆም ምላሽ መስጠት (User experience ያሻሽላል)
           await callTelegram(env, "answerCallbackQuery", { callback_query_id: callbackQuery.id });
+
+          try {
+            if (data.startsWith("grade_")) {
+              await sendSubjects(env, chatId, messageId, data);
+            } else if (data.startsWith("units_")) {
+              await sendUnits(env, chatId, messageId, data);
+            } else if (data.startsWith("prequiz_")) {
+              await sendPreQuizMenu(env, chatId, messageId, data);
+            } else if (data.startsWith("start_")) {
+              await putD1Value(env, `temp_score_${chatId}`, "0");
+              await sendQuestion(env, chatId, messageId, data, 0); 
+            } else if (data.startsWith("next_")) {
+              const parts = data.split("_");
+              const path = `grade_${parts[2]}_${parts[3]}_${parts[4]}`;
+              const nextIdx = parseInt(parts[5]);
+              await sendQuestion(env, chatId, messageId, `start_${path}`, nextIdx);
+            } else if (data.startsWith("answer_")) {
+              await handleAnswer(env, chatId, messageId, data, fullName);
+            } else if (data.startsWith("seen_")) {
+              await handleSeenQuestion(env, chatId, messageId, data);
+            } else if (data === "contact") {
+              await sendContact(env, chatId, messageId);
+            } else if (data === "help") {
+              await sendHelp(env, chatId, messageId);
+            } else if (data === "leaderboard") {
+              await sendLeaderboard(env, chatId, messageId);
+            } else if (data === "my_score") {
+              await sendMyScore(env, chatId, messageId, fullName);
+            } else if (data === "back_to_main") {
+              await sendStartMenu(env, chatId, messageId, fullName);
+            } else if (data.startsWith("back_to_grade_")) {
+              await sendSubjects(env, chatId, messageId, data.replace("back_to_grade_", ""));
+            } else if (data.startsWith("back_to_units_")) {
+              const parts = data.split("_");
+              const reconstructedData = `units_${parts[3]}_${parts[4]}_${parts[5]}`;
+              await sendUnits(env, chatId, messageId, reconstructedData);
+            }
+          } catch (callbackErr) {
+            // በደረጃ ሰንጠረዥ ወይም በሌላ ቁልፍ ላይ ስህተት ቢፈጠር ለAdmin ማሳወቅ
+            if (env.ADMIN_ID) {
+              await callTelegram(env, "sendMessage", { 
+                chat_id: env.ADMIN_ID, 
+                text: `❌ Callback Error: ${callbackErr.message}\nData: ${data}` 
+              });
+            }
+          }
         }
 
       } catch (e) {
+        // ማንኛውም ያልተጠበቀ ስህተት ቢፈጠር ለ Cloudflare 200 OK መመለስ (Loop እንዳይፈጠር)
         return new Response("OK", { status: 200 });
       }
       return new Response("OK", { status: 200 });
@@ -201,8 +213,7 @@ export default {
     return new Response("Bot is active!");
   },
 };
-
-
+            
 
 // --- GUI Functions ---
 async function sendStartMenu(env, chatId, editMessageId = null, fullName = "Student") {
